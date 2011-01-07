@@ -1,0 +1,21 @@
+<package>
+  <description brief="algorithms for navigation based on corridors">
+  This package contains algorithms to navigate inside corridors. These corridors can be given explicitely by the corridor planner, for instance, or they can also be implicitely defined by sensory input (corridor servoing)
+  </description>
+  <author>Janosch Machowinski, Sylvain Joyeux/janosch.machowinski@dfki.de</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+ <!--
+   To add any dependencies use the depend tag
+  <depend package="dummy-dependency-0" />
+	...
+  <depend package="dummy-dependency-n-1" />
+  <depend package="dummy-dependency-n" />
+-->
+<!--DEPEND-ENTRY-->
+  <versioncontrol type="git" url="" />
+  <export>
+    <cpp cflags="" lflags="" />
+  </export>
+</package>
