@@ -340,7 +340,7 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
             base::Vector3d to = boundary.getPoint(*it);
             base::Vector3d median = boundary.getPoint((*it + from_t) / 2);
 
-            double from_theta = vector_angles(base::Vector3d::UnitX(), from - current_p);
+            double from_theta = vector_angles(base::Vector3d::UnitY(), from - current_p);
             double diff_theta = vector_angles(from - current_p, to - current_p);
             // std::cerr << "looking at pair " << from_t << " " << from.x() << " " << from.y() << " " << from.z() << " h=" << from_theta << std::endl;
             // std::cerr << "            and " << *it << " " << to.x() << " " << to.y() << " " << to.z() << " h=" << from_theta + diff_theta << std::endl;
@@ -361,7 +361,7 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
                 // and is not going to be added at this one. Add it as a
                 // singular pair. See comment on the declaration of used_from
                 // for more explanations.
-                double from_theta = vector_angles(base::Vector3d::UnitX(), from - current_p);
+                double from_theta = vector_angles(base::Vector3d::UnitY(), from - current_p);
                 //std::cerr << "   intersection at single point: " << from_theta << std::endl;
                 rejected_segments.insert( std::make_pair(from_theta, from_theta) );
             }
