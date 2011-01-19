@@ -132,10 +132,86 @@ static double vector_angles(base::Vector3d const& from, base::Vector3d const& to
     return result;
 }
 
+enum INTERVAL_INTERSECTION
+{
+    INTER_NONE,
+    INTER_I2_I1,
+    INTER_I1_I2,
+    INTER_I2,
+    INTER_I1
+};
+
+static INTERVAL_INTERSECTION interval_intersection(pair<double, double> i1, pair<double, double> i2)
+{
+    float i2_second_in_i1 = (i2.second - i1.first) * (i2.second - i1.second);
+    float i2_first_in_i1  = (i2.first - i1.first) * (i2.first - i1.second);
+    if (i2_second_in_i1 < 0)
+    {
+        if (i2_first_in_i1 < 0)
+            return INTER_I1;
+        else
+            return INTER_I2_I1;
+    }
+    else if (i2_first_in_i1 < 0)
+        return INTER_I1_I2;
+    else
+    {
+        float i1_first_in_i2 = (i1.first - i2.first) * (i1.first - i2.second);
+        if (i1_first_in_i2 < 0)
+            return INTER_I2;
+        return INTER_NONE;
+    }
+}
+
+static pair<double, double> interval_merge(INTERVAL_INTERSECTION mode, pair<double, double> i1, pair<double, double> i2)
+{
+    switch(mode)
+    {
+        case INTER_I1: return i1;
+        case INTER_I2: return i2;
+        case INTER_I1_I2: return make_pair(i1.first, i2.second);
+        case INTER_I2_I1: return make_pair(i2.first, i1.second);
+        default:;
+    }
+    // never reached
+    return make_pair(0, 0);
+}
+
 vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const base::Pose& current_pose, double safetyDistance, double robotWidth) const
 {
     possible_directions.clear();
-    possible_directions.push_back(std::make_pair(0, 2 * M_PI));
+
+    double current_heading = current_pose.getYaw();
+    double threshold = cost_conf.pointTurnThreshold;
+    if (threshold == 0)
+    {
+        possible_directions.push_back(std::make_pair(0, 2 * M_PI));
+        return possible_directions;
+    }
+
+    double distance = search_conf.stepDistance;
+    double angular_threshold = threshold * distance;
+
+    pair<double, double> normal = std::make_pair(current_heading - angular_threshold, current_heading + angular_threshold);
+
+    double closest_t = corridor.median_curve.findOneClosestPoint(current_pose.position);
+    base::Vector3d closest, closest_tangent;
+    boost::tie(closest, closest_tangent) =
+        corridor.median_curve.getPointAndTangent(closest_t);
+    double local_heading = vector_angles(base::Vector3d::UnitY(), closest_tangent - closest);
+
+    pair<double, double> point_turn = make_pair(local_heading - cost_conf.pointTurnAperture, local_heading + cost_conf.pointTurnAperture);
+
+    INTERVAL_INTERSECTION intersection =
+        interval_intersection(normal, point_turn);
+    if (intersection != INTER_NONE)
+        possible_directions.push_back(interval_merge(intersection, normal, point_turn));
+    else
+    {
+        possible_directions.push_back(normal);
+        possible_directions.push_back(point_turn);
+    }
+
     return possible_directions;
 
     typedef std::vector< std::pair<double, double> > CurveSegments;

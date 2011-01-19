@@ -29,9 +29,9 @@ namespace corridor_navigation {
         /** This factor gives us the linear speed w.r.t. the rate of turn
          * (in rad/m). Speed is given by
          *   
-         *   speed = 1 - rate_of_turn * speedProfile
+         *   speed = speedProfile[0] - rate_of_turn * speedProfile[1]
          */
-        double speedProfile;
+        double speedProfile[2];
         /** This is the threshold rate of turn (in rad/m) above which the robot
          * will use point turning instead of going forward
          *
@@ -44,15 +44,20 @@ namespace corridor_navigation {
         /** Speed after a point turn
          */
         double speedAfterPointTurn;
+        
+        double pointTurnAperture;
 
         VFHFollowingConf()
             : safetyDistanceToBorder(0.5)
             , distanceToBorderWeight(1)
-
-            , speedProfile(0)
             , pointTurnThreshold(0)
             , pointTurnSpeed(0)
-            , speedAfterPointTurn(1) {}
+            , speedAfterPointTurn(1)
+            , pointTurnAperture(M_PI/4)
+        {
+            speedProfile[0] = 1;
+            speedProfile[1] = 0;
+        }
     };
 }
 
