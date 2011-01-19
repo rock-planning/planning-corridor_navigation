@@ -435,6 +435,27 @@ std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const base::Pose& cur
     return std::make_pair(ret, true);
 }
 
+static double getMotionCost(VFHFollowingConf const& cost_conf, double angle_diff, double distance)
+{
+    double rate_of_turn = angle_diff / distance;
+    if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && rate_of_turn > cost_conf.pointTurnThreshold))
+    {
+        // We have to point turn
+        return (angle_diff / cost_conf.pointTurnSpeed)
+            + distance / cost_conf.speedAfterPointTurn;
+        // std::cerr << "point turn " << angle_diff << " " << cost << std::endl;
+    }
+    else
+    {
+        // Normal movement
+        double speed = cost_conf.speedProfile[0] - rate_of_turn * cost_conf.speedProfile[1];
+        return distance / speed;
+        // std::cerr << "normal " << rate_of_turn << " " << cost << std::endl;
+    }
+
+    // never reached
+}
+
 double VFHFollowing::getHeuristic(const TreeNode &node) const
 {
     double d;
@@ -465,27 +486,12 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
     // }
 
     // Compute rate of turn
-    double angle_diff = fabs(direction - parentNode.getDirection());
+    double angle_diff = direction - parentNode.getDirection();
     if (angle_diff > M_PI)
         angle_diff -= 2 * M_PI;
 
-    double rate_of_turn = fabs(angle_diff / distance);
-
-    if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && rate_of_turn > cost_conf.pointTurnThreshold))
-    {
-        // We have to point turn
-        cost += (angle_diff / cost_conf.pointTurnSpeed)
-            + distance / cost_conf.speedAfterPointTurn;
-        std::cerr << "point turn " << cost << std::endl;
-    }
-    else
-    {
-        // Normal movement
-        double speed = 1 - rate_of_turn * cost_conf.speedProfile;
-        cost += distance / speed;
-        std::cerr << "normal " << cost << std::endl;
-    }
-
+    angle_diff = fabs(angle_diff);
+    cost += getMotionCost(cost_conf, angle_diff, distance);
     return cost;
 } 
 
