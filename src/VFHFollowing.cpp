@@ -453,16 +453,16 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
     double const distance = search_conf.stepDistance;
 
     // Check distance to boundaries
-    base::Position p = pose.position;
-    for (int i = 0; i < 2; ++i)
-    {
-        double d_boundary = corridor.boundary_curves[i].distanceTo(p);
-        if (d_boundary < cost_conf.safetyDistanceToBorder)
-        {
-            cost += (cost_conf.safetyDistanceToBorder - d_boundary)
-                * cost_conf.distanceToBorderWeight;
-        }
-    }
+    // base::Position p = pose.position;
+    // for (int i = 0; i < 2; ++i)
+    // {
+    //     double d_boundary = corridor.boundary_curves[i].distanceTo(p);
+    //     if (d_boundary < cost_conf.safetyDistanceToBorder)
+    //     {
+    //         cost += (cost_conf.safetyDistanceToBorder - d_boundary)
+    //             * cost_conf.distanceToBorderWeight;
+    //     }
+    // }
 
     // Compute rate of turn
     double angle_diff = fabs(direction - parentNode.getDirection());
