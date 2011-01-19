@@ -22,6 +22,66 @@ void VFHFollowing::setCostConf(const VFHFollowingConf& conf)
     this->cost_conf = conf;
 }
 
+static void computeCurveTangents(std::vector<base::Vector3d>& tangents, std::vector<base::Position> const& curve)
+{
+    tangents.clear();
+    tangents.reserve(curve.size());
+    int size = curve.size();
+    for (int i = 0; i < size; ++i)
+    {
+        int tg1_i = std::max(0, i - 4);
+        base::Vector3d tg1 = curve[i] - curve[tg1_i];
+        int tg2_i = std::min(size, i + 4);
+        base::Vector3d tg2 = curve[tg2_i] - curve[i];
+        tangents.push_back((tg2 + tg1) / 2);
+    }
+}
+
+static int getReferencePoint(base::Position p, int start_t, int search_dir, std::vector<base::Position> const& curve, std::vector<base::Vector3d> const& tangents)
+{
+    if (search_dir == 0)
+    {
+        base::Position curve_p = curve[start_t];
+        base::Vector3d curve_t = tangents[start_t];
+        float current_dir = (p - curve_p).dot(curve_t);
+        if (current_dir > 0) search_dir = 1;
+        else search_dir = -1;
+
+        int result = getReferencePoint(p, start_t, search_dir, curve, tangents);
+        if (result == -1)
+            return getReferencePoint(p, start_t, -search_dir, curve, tangents);
+        else
+            return result;
+    }
+
+    for (unsigned int i = start_t; i >= 0 && i < curve.size(); i += search_dir)
+    {
+        base::Position curve_p = curve[i];
+        base::Vector3d curve_t = tangents[i];
+        float new_dir = (p - curve_p).dot(curve_t);
+        if (new_dir * search_dir < 0)
+            return i;
+    }
+    return -1;
+}
+
+static int getClosest(std::vector<base::Position> const& curve, base::Position p)
+{
+    int min_t = 0;
+    double min_d = (curve[0] - p).norm();
+    for (unsigned int i = 1; i < curve.size(); ++i)
+    {
+        double d = (curve[i] - p).norm();
+        if (d < min_d)
+        {
+            min_d = d;
+            min_t = i;
+        }
+    }
+    return min_t;
+}
+
+
 base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_pose, double horizon)
 {
     if (search_conf.discountFactor != 1)
@@ -29,6 +89,8 @@ base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_
         std::cerr << "VFHFollowing needs TreeSearch to be configured with a discountFactor of 1" << std::endl;
         search_conf.discountFactor = 1;
     }
+
+    node_reference_points.resize(search_conf.maxTreeSize);
 
     findHorizon(current_pose.position, horizon);
     hasLastProjectedPosition = false;
@@ -38,6 +100,11 @@ base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_
 void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
 {
     this->corridor = corridor;
+
+    median_curve = corridor.median_curve.sample(search_conf.stepDistance / 4);
+    computeCurveTangents(median_tangents, median_curve);
+    boundary_curves[0]  = corridor.boundary_curves[0].sample(search_conf.stepDistance / 4);
+    boundary_curves[1]  = corridor.boundary_curves[1].sample(search_conf.stepDistance / 4);
     t_to_d = 1.0 / this->corridor.median_curve.getUnitParameter();
 }
 
@@ -51,6 +118,7 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
     base::Vector3d travel_direction;
     boost::tie(horizon_center, travel_direction) =
         corridor.median_curve.getPointAndTangent(t1);
+    node_reference_points[0] = getClosest(median_curve, horizon_center);
     for (int i = 0; i < 2; ++i)
     {
         double boundary_t = corridor.boundary_curves[i].
@@ -196,11 +264,14 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 
     pair<double, double> normal = std::make_pair(current_heading - angular_threshold, current_heading + angular_threshold);
 
-    double closest_t = corridor.median_curve.findOneClosestPoint(current_pose.position);
     base::Vector3d closest, closest_tangent;
-    boost::tie(closest, closest_tangent) =
-        corridor.median_curve.getPointAndTangent(closest_t);
-    double local_heading = vector_angles(base::Vector3d::UnitY(), closest_tangent - closest);
+    int reference_index = getReferencePoint(current_pose.position,
+            node_reference_points[current_node.getParent()->getIndex()], 0,
+            median_curve, median_tangents);
+    node_reference_points[current_node.getIndex()] = reference_index;
+    base::Vector3d local_tangent = median_tangents[reference_index];
+
+    double local_heading = vector_angles(base::Vector3d::UnitY(), local_tangent);
 
     pair<double, double> point_turn = make_pair(local_heading - cost_conf.pointTurnAperture, local_heading + cost_conf.pointTurnAperture);
 

@@ -37,6 +37,12 @@ namespace corridor_navigation
         // allocation
         mutable AngleIntervals possible_directions;
 
+        // Discretized version of the corridor curves
+        std::vector<base::Position> median_curve;
+        std::vector<base::Vector3d> median_tangents;
+        mutable std::vector<int> node_reference_points;
+        std::vector<base::Position> boundary_curves[2];
+
         // Definition of the planning horizon
         base::Position horizon_center;
         base::Position horizon_boundaries[2];
