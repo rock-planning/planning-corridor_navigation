@@ -196,7 +196,7 @@ bool VFHFollowing::isTerminalNode(const TreeNode& node) const
 static double vector_angles(base::Vector3d const& from, base::Vector3d const& to)
 {
     // WARNING: this works because from and to are in 2D !!!!
-    double result = atan2(from.y(), from.x()) - atan2(to.y(), to.x());
+    double result = atan2(to.y(), to.x()) - atan2(from.y(), from.x());
     if (result < -M_PI) result += 2 * M_PI;
     else if (result > M_PI) result -= 2*M_PI;
     return result;
