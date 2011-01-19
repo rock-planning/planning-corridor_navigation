@@ -111,9 +111,10 @@ void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
 void VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
 {
     double t0 = corridor.median_curve.findOneClosestPoint(current_position);
-    double t1 = t0 + desired_distance + t_to_d;
-    if (t1 > corridor.median_curve.getEndParam())
-        t1 = corridor.median_curve.getEndParam();
+    double t1, advance;
+    boost::tie(t1, advance) =
+        corridor.median_curve.advance(t0, desired_distance, search_conf.stepDistance / 5);
+    std::cerr << "advanced " << advance << " on the median curve" << std::endl;
 
     base::Vector3d travel_direction;
     boost::tie(horizon_center, travel_direction) =
@@ -139,6 +140,7 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
 
     std::cerr << "planning horizon" << std::endl;
     std::cerr << "  from=" << current_position.x() << " " << current_position.y() << " " << current_position.z() << std::endl;
+    std::cerr << "  to=" << horizon_center.x() << " " << horizon_center.y() << " " << horizon_center.z() << std::endl;
     std::cerr << "  from_parameter=" << t0 << " to_parameter=" << t1 << std::endl;
     std::cerr << "  d=" << desired_distance << std::endl;
     std::cerr << "  p=" << horizon_center.x() << " " << horizon_center.y() << " " << horizon_center.z() << std::endl;
