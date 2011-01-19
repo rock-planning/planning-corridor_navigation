@@ -6,9 +6,14 @@
 #include <corridor_planner/corridors.hh>
 #include <corridor_navigation/Types.hpp>
 
+namespace vfh_star
+{
+    class HeuristicLUT;
+    class HeuristicLUTBuilder;
+}
+
 namespace corridor_navigation
 {
-
     /** A behaviour that follows a corridor given to it explicitely
      *
      * It uses the VFH* algorithm for its planning step
@@ -17,6 +22,7 @@ namespace corridor_navigation
     {
     public:
         VFHFollowing();
+        ~VFHFollowing();
 
         void setCostConf(const VFHFollowingConf& conf);
 
@@ -26,9 +32,12 @@ namespace corridor_navigation
         base::geometry::Spline<3> getTrajectory(
                 const base::Pose& current_position, double horizon);
 
+        vfh_star::HeuristicLUT const& getHeuristicLUT() const;
+
     private:
         // Configuration of the cost function
         VFHFollowingConf cost_conf;
+        vfh_star::HeuristicLUTBuilder* heuristic_lut;
 
         void findHorizon(const base::Position& current_position,
                 double desired_distance);

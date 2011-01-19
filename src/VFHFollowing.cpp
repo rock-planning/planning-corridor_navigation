@@ -7,14 +7,23 @@
 #include <boost/tuple/tuple.hpp>
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
+#include <vfh_star/HeuristicLUT.h>
+#include <base/time.h>
 
 using namespace corridor_navigation;
 using namespace std;
 using vfh_star::TreeNode;
 
 VFHFollowing::VFHFollowing()
+    : heuristic_lut(new vfh_star::HeuristicLUTBuilder(*this))
 {
     possible_directions.resize(1);
+    tree.reserve(5000);
+}
+
+VFHFollowing::~VFHFollowing()
+{
+    delete heuristic_lut;
 }
 
 void VFHFollowing::setCostConf(const VFHFollowingConf& conf)
@@ -94,7 +103,16 @@ base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_
 
     findHorizon(current_pose.position, horizon);
     hasLastProjectedPosition = false;
+
+    base::Time now = base::Time::now();
+    // heuristic_lut->compute(horizon, search_conf.stepDistance, 0.3);
+    std::cerr << "built heuristic LUT in " << (base::Time::now() - now).toMilliseconds() << "ms" << std::endl;
     return TreeSearch::getTrajectory(current_pose);
+}
+
+vfh_star::HeuristicLUT const& VFHFollowing::getHeuristicLUT() const
+{
+    return *heuristic_lut;
 }
 
 void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
@@ -540,6 +558,21 @@ double VFHFollowing::getHeuristic(const TreeNode &node) const
         return 0;
 
     return fabs(d);
+
+    // base::Pose current = node.getPose();
+
+    // double result = heuristic_lut->getHeuristic(current, horizon_center);
+    // for (int i = 0; i < 2; ++i)
+    // {
+    //     base::Vector3d target_segment = horizon_boundaries[i] - horizon_center;
+    //     double length = target_segment.norm();
+    //     base::Vector3d unit = target_segment/length;
+
+    //     for (int i = 1; i < length; ++i)
+    //         result = std::min(result, heuristic_lut->getHeuristic(current, horizon_center + i * unit));
+    // }
+
+    // return result;
 }
 
 
