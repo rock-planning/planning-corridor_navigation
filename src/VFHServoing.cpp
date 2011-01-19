@@ -30,23 +30,23 @@ VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypo
 }
 
 
-std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const base::Pose& curPose, double obstacleSafetyDist, double robotWidth) const
+std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
 {
     VFHDebugData dd;
     std::vector< std::pair< double, double > > ret;
-    ret = vfh.getNextPossibleDirections(curPose, obstacleSafetyDist, robotWidth, &dd);
+    ret = vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth, &dd);
     debugData.steps.push_back(dd);
     return ret;
 }
 
-std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const base::Pose& curPose, double heading, double distance) const
+std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNode& curNode, double heading, double distance) const
 {
     //super omnidirectional robot
     base::Vector3d p(0, distance, 0);
     
     base::Pose ret;
     ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
-    ret.position = curPose.position + ret.orientation * p;
+    ret.position = curNode.getPose().position + ret.orientation * p;
     
     return std::make_pair(ret, true);
 }

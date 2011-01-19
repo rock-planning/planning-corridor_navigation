@@ -75,10 +75,10 @@ namespace corridor_navigation
         double getHeuristic(const vfh_star::TreeNode &node) const;
 
         //! Method required by vfh_star::TreeSearch
-        AngleIntervals getNextPossibleDirections(const base::Pose& current_pose, double safetyDistance, double robotWidth) const;
+        AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const;
 
         //! Method required by vfh_star::TreeSearch
-        std::pair<base::Pose, bool> getProjectedPose(const base::Pose& curPose,
+        std::pair<base::Pose, bool> getProjectedPose(const vfh_star::TreeNode& current_node,
                 double heading, double distance) const;
 
         //! Method required by vfh_star::TreeSearch

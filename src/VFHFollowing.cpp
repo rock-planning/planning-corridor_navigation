@@ -177,8 +177,10 @@ static pair<double, double> interval_merge(INTERVAL_INTERSECTION mode, pair<doub
     return make_pair(0, 0);
 }
 
-vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const base::Pose& current_pose, double safetyDistance, double robotWidth) const
+vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const
 {
+    base::Pose current_pose = current_node.getPose();
+
     possible_directions.clear();
 
     double current_heading = current_pose.getYaw();
@@ -424,14 +426,14 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
     return true;
 }
 
-std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const base::Pose& curPose,
+std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const vfh_star::TreeNode& curNode,
         double heading, double distance) const
 {
     //super omnidirectional robot
     base::Vector3d p(0, distance, 0);
     base::Pose ret;
     ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
-    ret.position = curPose.position + ret.orientation * p;
+    ret.position = curNode.getPose().position + ret.orientation * p;
     return std::make_pair(ret, true);
 }
 

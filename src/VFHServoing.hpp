@@ -22,9 +22,9 @@ namespace corridor_navigation
     private:
         vfh_star::VFH vfh;
         mutable VFHStarDebugData debugData;
-        AngleIntervals getNextPossibleDirections(const base::Pose& curPose, double obstacleSafetyDist, double robotWidth) const;
+        AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const;
         std::pair<base::Pose, bool> getProjectedPose(
-                const base::Pose& curPose, double heading, double distance) const;
+                const vfh_star::TreeNode& curNode, double heading, double distance) const;
     };
 }
 
