@@ -333,20 +333,20 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
     const base::Position parent = node.getParent()->getPose().position;
     const base::Position child  = node.getPose().position;
 
-    if (!hasLastProjectedPosition || (lastProjectedPosition != parent))
-    {
-        // We use the fact, here, that getProjectedPose gets called repeatedly
-        // with the same pose.
-        //
-        // We cache the min distance between curPose and the boundaries, so as
-        // to not test intersections unnecessarily
-        hasLastProjectedPosition = true;
-        lastProjectedPosition = parent;
-        projectionComputeIntersections[0] =
-            (corridor.boundary_curves[0].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
-        projectionComputeIntersections[1] =
-            (corridor.boundary_curves[1].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
-    }
+    // if (!hasLastProjectedPosition || (lastProjectedPosition != parent))
+    // {
+    //     // We use the fact, here, that getProjectedPose gets called repeatedly
+    //     // with the same pose.
+    //     //
+    //     // We cache the min distance between curPose and the boundaries, so as
+    //     // to not test intersections unnecessarily
+    //     hasLastProjectedPosition = true;
+    //     lastProjectedPosition = parent;
+    //     projectionComputeIntersections[0] =
+    //         (corridor.boundary_curves[0].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
+    //     projectionComputeIntersections[1] =
+    //         (corridor.boundary_curves[1].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
+    // }
 
     // Compute the normal to the line between parent and child
     base::Quaterniond q;
@@ -355,8 +355,8 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
 
     for (int i = 0; i < 2; ++i)
     {
-        if (!projectionComputeIntersections[i])
-            continue;
+        // if (!projectionComputeIntersections[i])
+        //     continue;
 
         base::geometry::Spline<3> const& boundary = corridor.boundary_curves[i];
         boundary.findLineIntersections(parent, n,
