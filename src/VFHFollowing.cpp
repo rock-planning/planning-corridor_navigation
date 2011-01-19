@@ -451,7 +451,7 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
             double d_cur_intersection  = (intersection_p - parent).norm();
             double d_next_intersection = (intersection_p - child).norm();
 
-            if (d_cur_intersection < 0.01 || d_next_intersection < 0.01)
+            if (d_cur_intersection < 0.1 || d_next_intersection < 0.1)
                 return false;
             double dir = (intersection_p - parent).
                 dot(intersection_p - child);
