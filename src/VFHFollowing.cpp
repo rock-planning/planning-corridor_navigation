@@ -176,9 +176,6 @@ std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Positi
         }
     }
 
-    // std::cerr << "distance of " << pos.x() << " " << pos.y() << " " << pos.z() << " to goal" << std::endl;
-    // std::cerr << "  " << distances[0] << "(" << on_segment[0] << ") " << distances[1] << "(" << on_segment[1] << ")" << std::endl;
-
     if (distances[0] > distances[1])
         return std::make_pair(distances[1], on_segment[1]);
     else
@@ -288,140 +285,12 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
     }
 
     return possible_directions;
-
-    typedef std::vector< std::pair<double, double> > CurveSegments;
-    typedef std::set< std::pair<double, double> > RejectedCurveSegments;
-    RejectedCurveSegments rejected_segments;
-
-    static const double geores = 0.01;
-
-    base::Position current_p = current_pose.position;
-
-    //std::cerr << "looking for possible directions from " << current_p.x() << " " << current_p.y() << " " << current_p.z() << std::endl;
-
-    // Get the intersection of a stepDistance sphere centered on \c current_pose
-    // with the corridor boundaries. Reject every direction that lead us out of
-    // the corridor
-    for (int i = 0; i < 2; ++i)
-    {
-        base::geometry::Spline<3> const& boundary = corridor.boundary_curves[i];
-        boundary.findSphereIntersections(current_p, search_conf.stepDistance,
-                curve_points, curve_segments, 0.001);
-
-        // std::cerr << curve_points.size() << " point intersects with boundary " << i << std::endl;
-        //std::cerr << curve_segments.size() << " segments intersects with boundary " << i << std::endl;
-
-        if (curve_points.empty() && curve_segments.empty())
-            continue;
-
-        std::set<double> sorted_points(curve_points.begin(), curve_points.end());
-        for (CurveSegments::const_iterator it = curve_segments.begin();
-                it != curve_segments.end(); ++it)
-        {
-            sorted_points.insert(it->first);
-            sorted_points.insert(it->second);
-            // std::cerr << "  segment: " << it->first << " " << it->second << std::endl;
-        }
-        sorted_points.insert(boundary.getEndParam());
-
-        // std::cerr << sorted_points.size() - 1 << " intersection points in sorted_points" << std::endl;
-
-        // If true, +from+ has already been added to a rejected_segment element.
-        // Otherwise, it has never been added. If a point is added neither as
-        // 'from' or 'to' in a segment, it gets added as a singular (p, p) pair
-        //
-        // The first point is artificial, and should therefore be considered as
-        // "added"
-        bool used_from = true;
-        double from_t = boundary.getStartParam();
-        base::Vector3d from = boundary.getPoint(from_t);
-        for (set<double>::const_iterator it = sorted_points.begin(); it != sorted_points.end(); ++it)
-        {
-            base::Vector3d to = boundary.getPoint(*it);
-            base::Vector3d median = boundary.getPoint((*it + from_t) / 2);
-
-            double from_theta = vector_angles(base::Vector3d::UnitY(), from - current_p);
-            double diff_theta = vector_angles(from - current_p, to - current_p);
-            // std::cerr << "looking at pair " << from_t << " " << from.x() << " " << from.y() << " " << from.z() << " h=" << from_theta << std::endl;
-            // std::cerr << "            and " << *it << " " << to.x() << " " << to.y() << " " << to.z() << " h=" << from_theta + diff_theta << std::endl;
-            // std::cerr << "        opening " << diff_theta * 180 / M_PI << std::endl;
-
-            if ((current_p - median).norm() - geores < search_conf.stepDistance)
-            {
-                //std::cerr << "   is within disk boundaries" << std::endl;
-                if (diff_theta > 0)
-                    rejected_segments.insert( std::make_pair(from_theta, from_theta + diff_theta) );
-                else
-                    rejected_segments.insert( std::make_pair(from_theta + diff_theta, from_theta) );
-                used_from = true;
-            }
-            else if (!used_from)
-            {
-                // The point in +from+ has not been added at the last iteration,
-                // and is not going to be added at this one. Add it as a
-                // singular pair. See comment on the declaration of used_from
-                // for more explanations.
-                double from_theta = vector_angles(base::Vector3d::UnitY(), from - current_p);
-                //std::cerr << "   intersection at single point: " << from_theta << std::endl;
-                rejected_segments.insert( std::make_pair(from_theta, from_theta) );
-            }
-            else
-            {
-                used_from = false;
-            }
-            from = to;
-            from_t = *it;
-        }
-    }
-
-    //std::cerr << "  " << rejected_segments.size() << " rejected segments" << std::endl;
-    if (rejected_segments.empty())
-    {
-        possible_directions.push_back(std::make_pair(0, 2 * M_PI));
-        return possible_directions;
-    }
-
-    std::pair<double, double> current_rejected = *rejected_segments.begin();
-    for (RejectedCurveSegments::const_iterator it = rejected_segments.begin(); it != rejected_segments.end(); ++it)
-    {
-        std::pair<double, double> new_rejected = *it;
-        if (current_rejected.second >= new_rejected.first)
-        {
-            if (current_rejected.second < new_rejected.second)
-                current_rejected.second = new_rejected.second;
-            continue;
-        }
-
-        // std::cerr << "  [" << current_rejected.second << ", " << new_rejected.first << "]" << std::endl;
-        possible_directions.push_back(std::make_pair(current_rejected.second, new_rejected.first));
-        current_rejected = new_rejected;
-    }
-
-    //std::cerr << "  [" << current_rejected.second << ", " << rejected_segments.begin()->first + 2 * M_PI << "]" << std::endl;
-    possible_directions.push_back(
-            std::make_pair(current_rejected.second, rejected_segments.begin()->first + 2 * M_PI));
-    return possible_directions;
 }
 
 bool VFHFollowing::validateNode(const TreeNode& node) const
 {
     const base::Position parent = node.getParent()->getPose().position;
     const base::Position child  = node.getPose().position;
-
-    // if (!hasLastProjectedPosition || (lastProjectedPosition != parent))
-    // {
-    //     // We use the fact, here, that getProjectedPose gets called repeatedly
-    //     // with the same pose.
-    //     //
-    //     // We cache the min distance between curPose and the boundaries, so as
-    //     // to not test intersections unnecessarily
-    //     hasLastProjectedPosition = true;
-    //     lastProjectedPosition = parent;
-    //     projectionComputeIntersections[0] =
-    //         (corridor.boundary_curves[0].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
-    //     projectionComputeIntersections[1] =
-    //         (corridor.boundary_curves[1].distanceTo(lastProjectedPosition) <= search_conf.stepDistance);
-    // }
 
     // Compute the normal to the line between parent and child
     base::Quaterniond q;
@@ -445,8 +314,6 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
 
         for (unsigned int i = 0; i < curve_points.size(); ++i)
         {
-            double intersection_t = curve_points[i];
-            // std::cerr << intersection_t << " " << boundary.getStartParam() << " " << boundary.getEndParam() << std::endl;
             base::Vector3d intersection_p = boundary.
                 getPoint(curve_points[i]);
 
@@ -461,40 +328,6 @@ bool VFHFollowing::validateNode(const TreeNode& node) const
             if (dir < 0)
                 return false;
         }
-
-        //if (has_intersection)
-        //{
-        //    double d_cur_intersection = (intersection_p - curPose.position).norm();
-        //    double d_next_intersection = (intersection_p - ret.position).norm();
-
-        //    if (d_cur_intersection < 0.01 || d_next_intersection < 0.01)
-        //        return std::make_pair(ret, false);
-
-        //    double dir = (intersection_p - curPose.position).dot(intersection_p - ret.position);
-        //    if (dir < 0)
-        //    {
-        //        std::cerr << "found intersection at " << intersection_t << " " << intersection_p.x() << " " << intersection_p.y() << std::endl;
-        //        std::cerr << "curPose is  " << curPose.position.x() << " " << curPose.position.y() << std::endl;
-        //        std::cerr << "nextPose is " << ret.position.x() << " " << ret.position.y() << std::endl;
-        //        std::cerr << "heading is  " << heading << std::endl;
-        //        std::cerr << "        d(curPose, intersection) = " << (curPose.position - intersection_p).norm() << std::endl;
-        //        std::cerr << "        d(curPose, nextPose) = " << (curPose.position - ret.position).norm() << std::endl;
-        //        std::cerr << "        d(intersection, nextPose) = " << (intersection_p - ret.position).norm() << std::endl;
-        //        return std::make_pair(ret, false);
-        //    }
-
-        //    if (false)
-        //    {
-        //        std::cerr << "found intersection at " << intersection_t << " " << intersection_p.x() << " " << intersection_p.y() << std::endl;
-        //        std::cerr << "curPose is  " << curPose.position.x() << " " << curPose.position.y() << std::endl;
-        //        std::cerr << "nextPose is " << ret.position.x() << " " << ret.position.y() << std::endl;
-        //        std::cerr << "heading is  " << heading << std::endl;
-        //        std::cerr << "        d(curPose, intersection) = " << (curPose.position - intersection_p).norm() << std::endl;
-        //        std::cerr << "        d(curPose, nextPose) = " << (curPose.position - ret.position).norm() << std::endl;
-        //        std::cerr << "        d(intersection, nextPose) = " << (intersection_p - ret.position).norm() << std::endl;
-        //        throw std::runtime_error("crossing corridor boundary " + boost::lexical_cast<string>(i));
-        //    }
-        //}
     }
     return true;
 }
@@ -518,14 +351,12 @@ static double getMotionCost(VFHFollowingConf const& cost_conf, double angle_diff
         // We have to point turn
         return (angle_diff / cost_conf.pointTurnSpeed)
             + distance / cost_conf.speedAfterPointTurn;
-        // std::cerr << "point turn " << angle_diff << " " << cost << std::endl;
     }
     else
     {
         // Normal movement
         double speed = cost_conf.speedProfile[0] - rate_of_turn * cost_conf.speedProfile[1];
         return distance / speed;
-        // std::cerr << "normal " << rate_of_turn << " " << cost << std::endl;
     }
 
     // never reached
