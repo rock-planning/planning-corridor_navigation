@@ -1,16 +1,7 @@
-#ifndef CORRIDOR_NAVIGATION_TYPES_HPP
-#define CORRIDOR_NAVIGATION_TYPES_HPP
-
-#include <vfh_star/VFH.h>
+#ifndef CORRIDOR_NAVIGATION_VFHFOLLOWING_CONF_HPP
+#define CORRIDOR_NAVIGATION_VFHFOLLOWING_CONF_HPP
 
 namespace corridor_navigation {
-    struct VFHStarDebugData {
-	std::vector<vfh_star::VFHDebugData> steps;
-	std::vector<base::Waypoint> generatedTrajectory;
-    };
-
-    typedef vfh_star::VFHStarConf VFHServoingConf;
-
     /** Configuration structure for VFHFollowing
      *
      * This mostly configures different parts of the cost function. See the

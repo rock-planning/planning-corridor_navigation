@@ -4,7 +4,7 @@
 #include <base/eigen.h>
 #include <vfh_star/TreeSearch.h>
 #include <corridor_planner/corridors.hh>
-#include <corridor_navigation/Types.hpp>
+#include <corridor_navigation/VFHFollowingConf.hpp>
 
 namespace corridor_navigation
 {

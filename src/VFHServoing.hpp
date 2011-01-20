@@ -4,7 +4,8 @@
 #include <vfh_star/Types.h>
 #include <vfh_star/VFHStar.h>
 #include <vfh_star/TraversabilityGrid.h>
-#include <corridor_navigation/Types.hpp>
+#include <corridor_navigation/VFHServoingConf.hpp>
+#include <corridor_navigation/VFHStarDebugData.hpp>
 #include <envire/maps/Grid.hpp>
 
 namespace corridor_navigation

@@ -3,8 +3,6 @@
 #include "corridor_navigation/VFHFollowing.hpp"
 #include <boost/tuple/tuple.hpp>
 #include <set>
-
-#include <boost/tuple/tuple.hpp>
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
 
