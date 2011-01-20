@@ -1,12 +1,11 @@
 <package>
   <description brief="algorithms for navigation based on corridors">
-  This package contains algorithms to navigate inside corridors. These corridors can be given explicitely by the corridor planner, for instance, or they can also be implicitely defined by sensory input (corridor servoing)
+  This package contains algorithms to navigate inside corridors. These corridors
+  can be given explicitely by the corridor planner, for instance, or they can
+  also be implicitely defined by sensory input (corridor servoing)
   </description>
-  <author>Janosch Machowinski, Sylvain Joyeux/janosch.machowinski@dfki.de</author>
-  <license></license>
-  <url>http://</url>
-  <logo>http://</logo>
-
+  <author>Janosch Machowinski/janosch.machowinski@dfki.de, Sylvain Joyeux/sylvain.joyeux@dfki.de</author>
+  <license>LGPL v2 or later</license>
 
   <depend package="base/types" />
   <depend package="planning/vfh_star" />
