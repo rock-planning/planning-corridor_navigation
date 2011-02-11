@@ -40,7 +40,13 @@ namespace corridor_navigation
         // Discretized version of the corridor curves
         std::vector<base::Position> median_curve;
         std::vector<base::Vector3d> median_tangents;
-        mutable std::vector<int> node_reference_points;
+        struct NodeInfo
+        {
+            int reference_point;
+            bool inside;
+            double distance_to_border;
+        };
+        mutable std::vector<NodeInfo> node_info;
         std::vector<base::Position> boundary_curves[2];
 
         // Definition of the planning horizon
@@ -87,6 +93,8 @@ namespace corridor_navigation
         std::pair<base::Pose, bool> getProjectedPose(const vfh_star::TreeNode& current_node,
                 double heading, double distance) const;
 
+        //! Method required by vfh_star::TreeSearch
+        bool updateCost(vfh_star::TreeNode& node) const;
         //! Method required by vfh_star::TreeSearch
         bool validateNode(const vfh_star::TreeNode& node) const;
     };

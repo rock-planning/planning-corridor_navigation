@@ -88,7 +88,7 @@ base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_
         search_conf.discountFactor = 1;
     }
 
-    node_reference_points.resize(search_conf.maxTreeSize);
+    node_info.resize(search_conf.maxTreeSize);
 
     findHorizon(current_pose.position, horizon);
     hasLastProjectedPosition = false;
@@ -117,7 +117,7 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
     base::Vector3d travel_direction;
     boost::tie(horizon_center, travel_direction) =
         corridor.median_curve.getPointAndTangent(t1);
-    node_reference_points[0] = getClosest(median_curve, horizon_center);
+    node_info[0].reference_point = getClosest(median_curve, horizon_center);
     for (int i = 0; i < 2; ++i)
     {
         double boundary_t = corridor.boundary_curves[i].
@@ -182,6 +182,9 @@ std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Positi
 
 bool VFHFollowing::isTerminalNode(const TreeNode& node) const
 {
+    if (!node_info[node.getIndex()].inside)
+        return false;
+
     double d;
     bool in_segment;
     boost::tie(d, in_segment) = algebraicDistanceToGoal(node.getPose().position);
@@ -263,9 +266,9 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 
     base::Vector3d closest, closest_tangent;
     int reference_index = getReferencePoint(current_pose.position,
-            node_reference_points[current_node.getParent()->getIndex()], 0,
+            node_info[current_node.getParent()->getIndex()].reference_point, 0,
             median_curve, median_tangents);
-    node_reference_points[current_node.getIndex()] = reference_index;
+    node_info[current_node.getIndex()].reference_point = reference_index;
     base::Vector3d local_tangent = median_tangents[reference_index];
 
     double local_heading = vector_angles(base::Vector3d::UnitY(), local_tangent);
@@ -285,49 +288,94 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
     return possible_directions;
 }
 
-bool VFHFollowing::validateNode(const TreeNode& node) const
+bool VFHFollowing::updateCost(TreeNode& node) const
+{
+    double d = node_info[node.getIndex()].distance_to_border;
+    double cost = 0;
+    if (d < cost_conf.safetyDistanceToBorder)
+    {
+        cost = (cost_conf.safetyDistanceToBorder - d)
+            * cost_conf.distanceToBorderWeight;
+    }
+    else if (!node_info[node.getIndex()].inside)
+    {
+        cost = (cost_conf.safetyDistanceToBorder + d)
+            * cost_conf.distanceToBorderWeight;
+    }
+
+    if (cost != 0)
+    {
+        node.setCost( node.getCost() + cost );
+        return true;
+    }
+    return false;
+}
+
+bool VFHFollowing::validateNode(TreeNode const& node) const
 {
     const base::Position parent = node.getParent()->getPose().position;
     const base::Position child  = node.getPose().position;
 
     // Compute the normal to the line between parent and child
-    base::Quaterniond q;
-    q = Eigen::AngleAxisd(M_PI / 2, base::Vector3d::UnitZ());
-    base::Vector3d n = q * (child - parent);
+    base::Vector3d n = base::Vector3d::UnitZ().cross(child - parent);
 
-    for (int i = 0; i < 2; ++i)
+    // Later, we compute in which direction we cross the boundaries by looking
+    // at the order between the parent->child vector and the boundary tangent at
+    // the intersection point
+    //
+    // This array encodes whether we have an inside2outside crossing if the Z
+    // coordinate of the cross product is positive (inside_outside[i] == 1) or
+    // negative (inside_outside[i] == -1)
+    double inside2outsideSign[2] = { 1, -1 };
+
+    base::Vector3d parent_child = (child - parent);
+    double parent_child_dist = parent_child.norm();
+
+    // We find the intersection closest to parent to know if parent is outside.
+    // We also are looking for the intersection closest to child to know if
+    // child is outside
+    //
+    bool parent_is_outside = false, child_is_outside = false;
+    double closest_parent_inter = -1, closest_child_inter = -1;
+    for (int curve_idx = 0; curve_idx < 2; ++curve_idx)
     {
-        // if (!projectionComputeIntersections[i])
-        //     continue;
-
-        base::geometry::Spline<3> const& boundary = corridor.boundary_curves[i];
-        boundary.findLineIntersections(parent, n,
+        base::geometry::Spline<3> const& curve = corridor.boundary_curves[curve_idx];
+        curve.findLineIntersections(parent, n,
                 curve_points, curve_segments, 0.01);
-
         for (unsigned int i = 0; i < curve_segments.size(); ++i)
         {
             curve_points.push_back(curve_segments[i].first);
             curve_points.push_back(curve_segments[i].second);
         }
-
+        
         for (unsigned int i = 0; i < curve_points.size(); ++i)
         {
-            base::Vector3d intersection_p = boundary.
-                getPoint(curve_points[i]);
+            base::Vector3d intersection_p, intersection_t;
+            boost::tie(intersection_p, intersection_t) = curve.
+                getPointAndTangent(curve_points[i]);
 
-            double d_cur_intersection  = (intersection_p - parent).norm();
-            double d_next_intersection = (intersection_p - child).norm();
+            double line_x = (intersection_p - parent).dot(parent_child);
+            double dist = fabs(line_x);
+            double inside2outside = parent_child.cross(intersection_t).z() * inside2outsideSign[curve_idx];
+            if (closest_parent_inter < 0 || closest_parent_inter > dist)
+            {
+                closest_parent_inter = dist;
+                parent_is_outside = (inside2outside * line_x < 0);
+            }
 
-            if (d_cur_intersection < 0.1 || d_next_intersection < 0.1)
-                return false;
-            double dir = (intersection_p - parent).
-                dot(intersection_p - child);
-
-            if (dir < 0)
-                return false;
+            line_x -= parent_child_dist;
+            dist = fabs(line_x);
+            if (closest_child_inter < 0 || closest_child_inter > dist)
+            {
+                closest_child_inter = dist;
+                child_is_outside = (inside2outside * line_x < 0);
+            }
         }
     }
-    return true;
+    node_info[node.getIndex()].distance_to_border = closest_child_inter;
+    node_info[node.getIndex()].inside = !child_is_outside;
+
+    return (parent_is_outside || !child_is_outside);
 }
 
 std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const vfh_star::TreeNode& curNode,
@@ -376,18 +424,6 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
 {
     double cost = 0;
     double const distance = search_conf.stepDistance;
-
-    // Check distance to boundaries
-    // base::Position p = pose.position;
-    // for (int i = 0; i < 2; ++i)
-    // {
-    //     double d_boundary = corridor.boundary_curves[i].distanceTo(p);
-    //     if (d_boundary < cost_conf.safetyDistanceToBorder)
-    //     {
-    //         cost += (cost_conf.safetyDistanceToBorder - d_boundary)
-    //             * cost_conf.distanceToBorderWeight;
-    //     }
-    // }
 
     // Compute rate of turn
     double angle_diff = direction - parentNode.getDirection();
