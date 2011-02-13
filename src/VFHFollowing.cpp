@@ -163,9 +163,9 @@ std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Positi
         base::Vector3d v = horizon_center - pos;
         double dist = v.dot(normal);
         double x    = v.dot(tangent);
-        if (x > horizon_lengths[i])
+        if (x < -horizon_lengths[i])
             distances[i] = (boundary - pos).norm();
-        else if (x < 0)
+        else if (x > 0)
             distances[i] = v.norm();
         else
         {
