@@ -147,6 +147,7 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
         std::cerr << "  b" << i << "=" << horizon_boundaries[i].x() << " " << horizon_boundaries[i].y() << " " << horizon_boundaries[i].z() << std::endl;
         std::cerr << "  n" << i << "=" << horizon_normals[i].x() << " " << horizon_normals[i].y() << " " << horizon_normals[i].z() << std::endl;
         std::cerr << "  t" << i << "=" << horizon_tangents[i].x() << " " << horizon_tangents[i].y() << " " << horizon_tangents[i].z() << std::endl;
+        std::cerr << "  l" << i << "=" << horizon_lengths[i] << std::endl;
     }
 }
 
