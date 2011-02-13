@@ -127,6 +127,7 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
     boost::tie(base_point, travel_direction) =
         corridor.median_curve.getPointAndTangent(t1);
     node_info[0].reference_point = getClosest(median_curve, base_point);
+    node_info[0].inside = true;
     for (int i = 0; i < 2; ++i)
     {
         double boundary_t = corridor.boundary_curves[i].
