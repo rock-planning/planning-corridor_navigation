@@ -127,14 +127,10 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
         horizon_tangents[i] = (horizon_boundaries[i] - horizon_center);
         horizon_tangents[i].normalize();
 
-        base::Vector3d normal = horizon_tangents[i].cross(base::Vector3d::UnitZ());
-        if (normal.dot(travel_direction) < 0)
-            horizon_normals[i] = -normal;
-        else
-            horizon_normals[i] = normal;
-
+        horizon_normals[i] = base::Vector3d::UnitZ().cross(horizon_tangents[i]);
         horizon_lengths[i] = (horizon_boundaries[i] - horizon_center).norm();
     }
+    horizon_normals[1] = -horizon_normals[1];
 
     std::cerr << "planning horizon" << std::endl;
     std::cerr << "  from=" << current_position.x() << " " << current_position.y() << " " << current_position.z() << std::endl;
