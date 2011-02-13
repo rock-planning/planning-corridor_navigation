@@ -99,11 +99,20 @@ void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
 {
     this->corridor = corridor;
 
-    median_curve = corridor.median_curve.sample(search_conf.stepDistance / 4);
+    std::vector<double> sampling_t;
+    median_curve = corridor.median_curve.sample(search_conf.stepDistance / 4, &sampling_t);
+
+    // Account for rounding errors in the two curves ...
+    if (sampling_t.size() > 1)
+        sampling_t[sampling_t.size() - 1] = sampling_t[sampling_t.size() - 2];
+
+    std::vector< base::geometry::Spline<1>::vector_t > widths = corridor.width_curve.getPoints(sampling_t);
+    width_curve.resize(widths.size());
+    for (unsigned int i = 0; i < widths.size(); ++i)
+        width_curve[i] = widths[i](0, 0);
     computeCurveTangents(median_tangents, median_curve);
     boundary_curves[0]  = corridor.boundary_curves[0].sample(search_conf.stepDistance / 4);
     boundary_curves[1]  = corridor.boundary_curves[1].sample(search_conf.stepDistance / 4);
-    t_to_d = 1.0 / this->corridor.median_curve.getUnitParameter();
 }
 
 void VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
@@ -243,13 +252,8 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 
     pair<double, double> normal = std::make_pair(current_heading - angular_threshold, current_heading + angular_threshold);
 
-    base::Vector3d closest, closest_tangent;
-    int reference_index = getReferencePoint(current_pose.position,
-            node_info[current_node.getParent()->getIndex()].reference_point, 0,
-            median_curve, median_tangents);
-    node_info[current_node.getIndex()].reference_point = reference_index;
+    int reference_index = node_info[current_node.getIndex()].reference_point;
     base::Vector3d local_tangent = median_tangents[reference_index];
-
     double local_heading = vector_angles(base::Vector3d::UnitY(), local_tangent);
 
     pair<double, double> point_turn = make_pair(local_heading - cost_conf.pointTurnAperture, local_heading + cost_conf.pointTurnAperture);
@@ -269,14 +273,21 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 
 bool VFHFollowing::updateCost(TreeNode& node) const
 {
-    double d = node_info[node.getIndex()].distance_to_border;
+    int reference_point = node_info[node.getIndex()].reference_point;
+    double local_width = width_curve[reference_point];
+    double distance_to_ref = (median_curve[reference_point] - node.getPose().position).norm();
+
+    double d = (local_width - distance_to_ref);
     double cost = 0;
-    if (d < cost_conf.safetyDistanceToBorder)
+    if (node_info[node.getIndex()].inside)
     {
-        cost = (cost_conf.safetyDistanceToBorder - d)
-            * cost_conf.distanceToBorderWeight;
+        if (d < cost_conf.safetyDistanceToBorder)
+        {
+            cost = (cost_conf.safetyDistanceToBorder - d)
+                * cost_conf.distanceToBorderWeight;
+        }
     }
-    else if (!node_info[node.getIndex()].inside)
+    else
     {
         cost = (cost_conf.safetyDistanceToBorder + d)
             * cost_conf.distanceToBorderWeight;
@@ -294,6 +305,14 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
 {
     const base::Position parent = node.getParent()->getPose().position;
     const base::Position child  = node.getPose().position;
+
+    // Get the index of the closest point on the median. We compute it here as
+    // it is being used in updateCost() and getNextPossibleDirections(), and
+    // validateNode() is the first method called on a node
+    node_info[node.getIndex()].reference_point =
+        getReferencePoint(node.getPose().position,
+            node_info[node.getParent()->getIndex()].reference_point, 0,
+            median_curve, median_tangents);
 
     // Compute the normal to the line between parent and child
     base::Vector3d n = base::Vector3d::UnitZ().cross(child - parent);
@@ -351,7 +370,6 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
             }
         }
     }
-    node_info[node.getIndex()].distance_to_border = closest_child_inter;
     node_info[node.getIndex()].inside = !child_is_outside;
 
     return (parent_is_outside || !child_is_outside);

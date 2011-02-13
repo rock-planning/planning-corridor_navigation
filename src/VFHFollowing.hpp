@@ -39,12 +39,12 @@ namespace corridor_navigation
 
         // Discretized version of the corridor curves
         std::vector<base::Position> median_curve;
+        std::vector<double> width_curve;
         std::vector<base::Vector3d> median_tangents;
         struct NodeInfo
         {
             int reference_point;
             bool inside;
-            double distance_to_border;
         };
         mutable std::vector<NodeInfo> node_info;
         std::vector<base::Position> boundary_curves[2];
@@ -67,9 +67,6 @@ namespace corridor_navigation
 
         // The corridor we have to follow
         corridors::Corridor corridor;
-
-        // The base "parameter-to-distance" for the corridor's median curve
-        double t_to_d;
 
         // Computes the distance to the goal line, with positive distances
         // if \c pos is behind the horizon line w.r.t. the direction defined by
