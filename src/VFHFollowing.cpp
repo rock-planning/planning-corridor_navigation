@@ -114,67 +114,49 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
         corridor.median_curve.advance(t0, desired_distance, search_conf.stepDistance / 5);
     std::cerr << "advanced " << advance << " on the median curve" << std::endl;
 
-    base::Vector3d travel_direction;
-    boost::tie(horizon_center, travel_direction) =
+    base::Vector3d base_point, travel_direction;
+    boost::tie(base_point, travel_direction) =
         corridor.median_curve.getPointAndTangent(t1);
-    node_info[0].reference_point = getClosest(median_curve, horizon_center);
+    node_info[0].reference_point = getClosest(median_curve, base_point);
     for (int i = 0; i < 2; ++i)
     {
         double boundary_t = corridor.boundary_curves[i].
-            findOneClosestPoint(horizon_center);
+            findOneClosestPoint(base_point);
         horizon_boundaries[i] = corridor.boundary_curves[i].
             getPoint(boundary_t);
-        horizon_tangents[i] = (horizon_boundaries[i] - horizon_center);
-        horizon_tangents[i].normalize();
-
-        horizon_normals[i] = base::Vector3d::UnitZ().cross(horizon_tangents[i]);
-        horizon_lengths[i] = (horizon_boundaries[i] - horizon_center).norm();
     }
-    horizon_normals[1] = -horizon_normals[1];
+
+    base::Vector3d tangent = horizon_boundaries[1] - horizon_boundaries[0];
+    horizon_length = tangent.norm();
+    horizon_tangent = tangent / horizon_length;
+    // normal must be oriented in the direction opposite of travel so that
+    // algebraicDistanceToGoal is > 0 for non-terminal nodes
+    horizon_normal  = base::Vector3d::UnitZ().cross(horizon_tangent);
 
     std::cerr << "planning horizon" << std::endl;
     std::cerr << "  from=" << current_position.x() << " " << current_position.y() << " " << current_position.z() << std::endl;
-    std::cerr << "  to=" << horizon_center.x() << " " << horizon_center.y() << " " << horizon_center.z() << std::endl;
+    std::cerr << "  to=" << base_point.x() << " " << base_point.y() << " " << base_point.z() << std::endl;
     std::cerr << "  from_parameter=" << t0 << " to_parameter=" << t1 << std::endl;
     std::cerr << "  d=" << desired_distance << std::endl;
-    std::cerr << "  p=" << horizon_center.x() << " " << horizon_center.y() << " " << horizon_center.z() << std::endl;
     for (int i = 0; i < 2; ++i)
     {
         std::cerr << "  b" << i << "=" << horizon_boundaries[i].x() << " " << horizon_boundaries[i].y() << " " << horizon_boundaries[i].z() << std::endl;
-        std::cerr << "  n" << i << "=" << horizon_normals[i].x() << " " << horizon_normals[i].y() << " " << horizon_normals[i].z() << std::endl;
-        std::cerr << "  t" << i << "=" << horizon_tangents[i].x() << " " << horizon_tangents[i].y() << " " << horizon_tangents[i].z() << std::endl;
-        std::cerr << "  l" << i << "=" << horizon_lengths[i] << std::endl;
     }
+    std::cerr << "  n=" << horizon_normal.x() << " " << horizon_normal.y() << " " << horizon_normal.z() << std::endl;
+    std::cerr << "  t=" << horizon_tangent.x() << " " << horizon_tangent.y() << " " << horizon_tangent.z() << std::endl;
+    std::cerr << "  l=" << horizon_length << std::endl;
 }
 
 std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Position& pos) const
 {
-    bool on_segment[2] = { false, false };
-    double distances[2];
-    for (int i = 0; i < 2; ++i)
-    {
-        base::Vector3d normal   = horizon_normals[i];
-        base::Vector3d tangent  = horizon_tangents[i];
-        base::Vector3d boundary = horizon_boundaries[i];
-
-        base::Vector3d v = horizon_center - pos;
-        double dist = v.dot(normal);
-        double x    = v.dot(tangent);
-        if (x < -horizon_lengths[i])
-            distances[i] = (boundary - pos).norm();
-        else if (x > 0)
-            distances[i] = v.norm();
-        else
-        {
-            distances[i] = dist;
-            on_segment[i] = true;
-        }
-    }
-
-    if (distances[0] > distances[1])
-        return std::make_pair(distances[1], on_segment[1]);
+    base::Vector3d v = pos - horizon_boundaries[0];
+    double x    = v.dot(horizon_tangent);
+    if (x > horizon_length)
+        return std::make_pair((pos - horizon_boundaries[1]).norm(), false);
+    else if (x < 0)
+        return std::make_pair(v.norm(), false);
     else
-        return std::make_pair(distances[0], on_segment[0]);
+        return std::make_pair(v.dot(horizon_normal), true);
 }
 
 bool VFHFollowing::isTerminalNode(const TreeNode& node) const

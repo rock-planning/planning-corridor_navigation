@@ -50,11 +50,10 @@ namespace corridor_navigation
         std::vector<base::Position> boundary_curves[2];
 
         // Definition of the planning horizon
-        base::Position horizon_center;
         base::Position horizon_boundaries[2];
-        base::Position horizon_normals[2];
-        base::Position horizon_tangents[2];
-        double horizon_lengths[2];
+        base::Position horizon_normal;
+        base::Position horizon_tangent;
+        double horizon_length;
 
         // Cached values for getProjectedPose
         mutable bool hasLastProjectedPosition;
