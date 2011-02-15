@@ -422,6 +422,9 @@ bool VFHFollowing::updateCost(TreeNode& node) const
 
 bool VFHFollowing::validateNode(TreeNode const& node) const
 {
+    if (node.isRoot())
+        return true;
+
     const base::Position parent = node.getParent()->getPose().position;
     const base::Position child  = node.getPose().position;
 
@@ -433,8 +436,12 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
             node_info[node.getParent()->getIndex()].reference_point, 0,
             median_curve, median_tangents);
 
+    base::Vector3d parent_child = (child - parent);
+    double parent_child_dist = parent_child.norm();
+    parent_child /= parent_child_dist;
+
     // Compute the normal to the line between parent and child
-    base::Vector3d n = base::Vector3d::UnitZ().cross(child - parent);
+    base::Vector3d n = base::Vector3d::UnitZ().cross(parent_child);
 
     // Later, we compute in which direction we cross the boundaries by looking
     // at the order between the parent->child vector and the boundary tangent at
@@ -445,9 +452,6 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
     // negative (inside_outside[i] == -1)
     double inside2outsideSign[2] = { 1, -1 };
 
-    base::Vector3d parent_child = (child - parent);
-    double parent_child_dist = parent_child.norm();
-
     // We find the intersection closest to parent to know if parent is outside.
     // We also are looking for the intersection closest to child to know if
     // child is outside
@@ -456,6 +460,9 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
     double closest_parent_inter = -1, closest_child_inter = -1;
     for (int curve_idx = 0; curve_idx < 2; ++curve_idx)
     {
+        curve_points.clear();
+        curve_segments.clear();
+
         base::geometry::Spline<3> const& curve = corridor.boundary_curves[curve_idx];
         curve.findLineIntersections(parent, n,
                 curve_points, curve_segments, 0.01);
