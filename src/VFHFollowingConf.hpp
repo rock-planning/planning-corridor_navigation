@@ -61,6 +61,13 @@ namespace corridor_navigation {
          */
         double finalDirectionCost;
 
+        /** Some systems are really bad at turning. For those, it is best to
+         * force going straight as much as possible.
+         *
+         * This cost is added to all movements that are not perfectly straight
+         */
+        double baseTurnCost;
+
         VFHFollowingConf()
             : safetyDistanceToBorder(0.5)
             , pointTurnThreshold(0)
@@ -68,6 +75,7 @@ namespace corridor_navigation {
             , speedAfterPointTurn(1)
             , pointTurnAperture(M_PI/4)
             , finalDirectionCost(0)
+            , baseTurnCost(0.5)
         {
             distanceToBorderWeight[0] = 0;
             distanceToBorderWeight[1] = 1;
