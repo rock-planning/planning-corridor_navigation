@@ -26,12 +26,20 @@ namespace corridor_navigation
         base::geometry::Spline<3> getTrajectory(
                 const base::Pose& current_position, double horizon);
 
+        std::pair<base::Vector3d, base::Vector3d> getHorizon() const;
+
+        double getInitialHorizonDistance() const;
+
+        void computeHorizon(double median_t, base::Vector3d const& current_position);
+
     private:
         // Configuration of the cost function
         VFHFollowingConf cost_conf;
 
         void findHorizon(const base::Position& current_position,
                 double desired_distance);
+        void updateHorizonParameters(base::Position const& current_position);
+        void findBoundaryInterpolation(double median_t, base::Position const& current_position, double desired_distance);
 
         // Used as a cached value in getNextPossibleDirections to avoid memory
         // allocation
@@ -50,10 +58,13 @@ namespace corridor_navigation
         std::vector<base::Position> boundary_curves[2];
 
         // Definition of the planning horizon
+        double horizon_boundaries_t[2];
         base::Position horizon_boundaries[2];
         base::Position horizon_normal;
         base::Position horizon_tangent;
         double horizon_length;
+        double horizon_direction;
+        double initial_horizon_distance;
 
         // Cached values for getProjectedPose
         mutable bool hasLastProjectedPosition;

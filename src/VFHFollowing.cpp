@@ -5,10 +5,23 @@
 #include <set>
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
+#include <boost/bind.hpp>
 
 using namespace corridor_navigation;
 using namespace std;
+using boost::lexical_cast;
 using vfh_star::TreeNode;
+using boost::bind;
+using boost::ref;
+
+static double vector_angles(base::Vector3d const& from, base::Vector3d const& to)
+{
+    // WARNING: this works because from and to are in 2D !!!!
+    double result = atan2(to.y(), to.x()) - atan2(from.y(), from.x());
+    if (result < -M_PI) result += 2 * M_PI;
+    else if (result > M_PI) result -= 2*M_PI;
+    return result;
+}
 
 VFHFollowing::VFHFollowing()
 {
@@ -79,6 +92,15 @@ static int getClosest(std::vector<base::Position> const& curve, base::Position p
     return min_t;
 }
 
+std::pair<base::Vector3d, base::Vector3d> VFHFollowing::getHorizon() const
+{
+    return std::make_pair(horizon_boundaries[0], horizon_boundaries[1]);
+}
+
+double VFHFollowing::getInitialHorizonDistance() const
+{
+    return initial_horizon_distance;
+}
 
 base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_pose, double horizon)
 {
@@ -115,33 +137,135 @@ void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
     boundary_curves[1]  = corridor.boundary_curves[1].sample(search_conf.stepDistance / 4);
 }
 
-void VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
+void VFHFollowing::computeHorizon(double median_t, base::Vector3d const& current_position)
 {
-    double t0 = corridor.median_curve.findOneClosestPoint(current_position);
-    double t1, advance;
-    boost::tie(t1, advance) =
-        corridor.median_curve.advance(t0, desired_distance, search_conf.stepDistance / 5);
-    std::cerr << "advanced " << advance << " on the median curve" << std::endl;
-
     base::Vector3d base_point, travel_direction;
     boost::tie(base_point, travel_direction) =
-        corridor.median_curve.getPointAndTangent(t1);
-    node_info[0].reference_point = getClosest(median_curve, base_point);
-    node_info[0].inside = true;
+        corridor.median_curve.getPointAndTangent(median_t);
+
+    for (int curve_idx = 0; curve_idx < 2; ++curve_idx)
+    {
+        curve_points.clear();
+        curve_segments.clear();
+        corridor.boundary_curves[curve_idx].
+             findClosestPoints(base_point, curve_points, curve_segments);
+
+        double boundary_t = 0;
+        if (!curve_points.empty())
+            boundary_t = curve_points[0];
+        else if (!curve_segments.empty())
+            boundary_t = curve_segments[0].first;
+        else
+            throw std::runtime_error("no closest point (!)");
+
+        for (unsigned int i = 1; i < curve_points.size(); ++i)
+        {
+            if (boundary_t > curve_points[i])
+                boundary_t = curve_points[i];
+        }
+        for (unsigned int i = 0; i < curve_segments.size(); ++i)
+        {
+            if (boundary_t > curve_segments[i].first)
+                boundary_t = curve_segments[i].first;
+        }
+
+        horizon_boundaries_t[curve_idx] = boundary_t;
+    }
+
+    updateHorizonParameters(current_position);
+}
+
+void VFHFollowing::updateHorizonParameters(base::Position const& current_position)
+{
     for (int i = 0; i < 2; ++i)
     {
-        double boundary_t = corridor.boundary_curves[i].
-            findOneClosestPoint(base_point);
         horizon_boundaries[i] = corridor.boundary_curves[i].
-            getPoint(boundary_t);
+            getPoint(horizon_boundaries_t[i]);
     }
 
     base::Vector3d tangent = horizon_boundaries[1] - horizon_boundaries[0];
-    horizon_length = tangent.norm();
+    horizon_length  = tangent.norm();
     horizon_tangent = tangent / horizon_length;
     // normal must be oriented in the direction opposite of travel so that
     // algebraicDistanceToGoal is > 0 for non-terminal nodes
-    horizon_normal  = base::Vector3d::UnitZ().cross(horizon_tangent);
+    horizon_normal    = base::Vector3d::UnitZ().cross(horizon_tangent);
+    horizon_direction = vector_angles(base::Vector3d::UnitY(), horizon_normal) + M_PI;
+    initial_horizon_distance = algebraicDistanceToGoal(current_position).first;
+}
+
+
+static std::pair<bool, double> horizonSearchTest(VFHFollowing& follower, base::Vector3d const& initial_position, double desired_distance, double t0, double t1, base::geometry::Spline<3> const& curve)
+{
+    follower.computeHorizon(t0, initial_position);
+    double initial0 = follower.getInitialHorizonDistance();
+    follower.computeHorizon(t1, initial_position);
+    double initial1 = follower.getInitialHorizonDistance();
+    return std::make_pair(initial0 < desired_distance && initial1 > desired_distance, initial1 - initial0);
+}
+
+void VFHFollowing::findBoundaryInterpolation(double median_t, base::Position const& current_position, double desired_distance)
+{
+    double before_t[2] = { horizon_boundaries_t[0], horizon_boundaries_t[1] };
+    computeHorizon(median_t, current_position);
+    double after_t[2] =  { horizon_boundaries_t[0], horizon_boundaries_t[1] };
+
+    while (true)
+    {
+        for (int i = 0; i < 2; ++i)
+            horizon_boundaries_t[i] = (before_t[i] + after_t[i]) / 2;
+        updateHorizonParameters(current_position);
+
+        if (initial_horizon_distance > desired_distance * 1.1)
+            copy(horizon_boundaries_t, horizon_boundaries_t + 2, after_t);
+        else if (initial_horizon_distance < desired_distance * 0.9)
+            copy(horizon_boundaries_t, horizon_boundaries_t + 2, before_t);
+        else
+            break;
+    }
+}
+
+void VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
+{
+    double t0 = corridor.median_curve.findOneClosestPoint(current_position);
+
+    double t1, advance;
+    boost::tie(t1, advance) =
+        corridor.median_curve.advance(t0, desired_distance, search_conf.stepDistance / 5);
+
+    // Now look for a good horizon
+    computeHorizon(t1, current_position);
+    std::cerr << "advanced " << advance << " on the median curve" << std::endl;
+    std::cerr << "searching between " << t0 << " and " << t1 << std::endl;
+
+    if (initial_horizon_distance > desired_distance * 1.1)
+    {
+        double before, after;
+        boost::tie(before, after) = corridor.median_curve.
+            dichotomic_search(t0, t1, bind(horizonSearchTest, ref(*this), current_position, desired_distance, _1, _2, _3), search_conf.stepDistance / 2, 0.0001);
+        if (before == after)
+        {
+            // The horizon at +t0+ is already too far ... Just take it
+            computeHorizon(t0, current_position);
+            std::cerr << "t0_horizon too far: initial_horizon_distance=" << initial_horizon_distance << std::endl;
+        }
+        else
+        {
+            computeHorizon(before, current_position);
+            std::cerr << "before=" << before << ", initial_d=" << initial_horizon_distance << std::endl;
+            if (fabs(initial_horizon_distance - desired_distance) / desired_distance > 0.1)
+            {
+                // We have to find an interpolation between after and before, but we
+                // have to do it by working on the boundaries, *not* by working on the
+                // median curve
+                findBoundaryInterpolation(after, current_position, desired_distance);
+                std::cerr << "interpolated, initial_d=" << initial_horizon_distance << std::endl;
+            }
+        }
+    }
+
+    base::Vector3d base_point = corridor.median_curve.getPoint(t0);
+    node_info[0].reference_point = getClosest(median_curve, base_point);
+    node_info[0].inside = true;
 
     std::cerr << "planning horizon" << std::endl;
     std::cerr << "  from=" << current_position.x() << " " << current_position.y() << " " << current_position.z() << std::endl;
@@ -155,6 +279,8 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
     std::cerr << "  n=" << horizon_normal.x() << " " << horizon_normal.y() << " " << horizon_normal.z() << std::endl;
     std::cerr << "  t=" << horizon_tangent.x() << " " << horizon_tangent.y() << " " << horizon_tangent.z() << std::endl;
     std::cerr << "  l=" << horizon_length << std::endl;
+    std::cerr << "  dir=" << horizon_direction << std::endl;
+    std::cerr << "  initial point-to-horizon: " << initial_horizon_distance << std::endl;
 }
 
 std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Position& pos) const
@@ -178,15 +304,6 @@ bool VFHFollowing::isTerminalNode(const TreeNode& node) const
     bool in_segment;
     boost::tie(d, in_segment) = algebraicDistanceToGoal(node.getPose().position);
     return in_segment && (d <= 0);
-}
-
-static double vector_angles(base::Vector3d const& from, base::Vector3d const& to)
-{
-    // WARNING: this works because from and to are in 2D !!!!
-    double result = atan2(to.y(), to.x()) - atan2(from.y(), from.x());
-    if (result < -M_PI) result += 2 * M_PI;
-    else if (result > M_PI) result -= 2*M_PI;
-    return result;
 }
 
 enum INTERVAL_INTERSECTION
