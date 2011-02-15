@@ -393,23 +393,56 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 bool VFHFollowing::updateCost(TreeNode& node) const
 {
     int reference_point = node_info[node.getIndex()].reference_point;
-    double local_width = width_curve[reference_point];
-    double distance_to_ref = (median_curve[reference_point] - node.getPose().position).norm();
 
-    double d = (local_width - distance_to_ref);
-    double cost = 0;
-    if (node_info[node.getIndex()].inside)
+    // WARN: this is an approximation of the half-width of the corridor. It is
+    // an approximation, as it depends on the choice of the reference point on
+    // the median.
+    double local_width = width_curve[reference_point];
+    double distance_to_median = (median_curve[reference_point] - node.getPose().position).norm();
+
+    bool is_inside = node_info[node.getIndex()].inside;
+
+    // See comment above about local_width being an approximation
+    //
+    // d is the distance from the local border to the current position, positive
+    // being inside and negative outside
+    double d = 0;
+    if (is_inside)
     {
-        if (d < cost_conf.safetyDistanceToBorder)
-        {
-            cost = (cost_conf.safetyDistanceToBorder - d)
-                * cost_conf.distanceToBorderWeight;
-        }
+        if (local_width > distance_to_median)
+            d = (local_width - distance_to_median);
+        else
+            d = 0;
     }
     else
     {
-        cost = (cost_conf.safetyDistanceToBorder + d)
-            * cost_conf.distanceToBorderWeight;
+        if (distance_to_median > local_width)
+            d = (local_width - distance_to_median);
+        else
+            d = 0;
+    }
+
+    // Width of the corridor "inside", i.e. the part of the corridor that is not
+    // the safety margin.
+    double inside_width = local_width - cost_conf.safetyDistanceToBorder;
+    if (inside_width < 0)
+        inside_width = 0;
+
+    double cost = 0;
+    if (d > cost_conf.safetyDistanceToBorder)
+    {
+        if (local_width > d)
+        {
+            // we are inside the corridor and outside the safety margin
+            cost += (local_width - d) / inside_width * cost_conf.distanceToBorderWeight[0];
+        }
+    }
+    if (d < cost_conf.safetyDistanceToBorder)
+    {
+        // We are too close to the border, or outside the corridor
+        cost += cost_conf.distanceToBorderWeight[0] +
+            (cost_conf.safetyDistanceToBorder - d)
+                * cost_conf.distanceToBorderWeight[1];
     }
 
     if (cost != 0)
