@@ -50,6 +50,13 @@ namespace corridor_navigation {
          */
         double speedAfterPointTurn;
         
+        /** When adding the possible travel directions, we always add an
+         * aperture of [-pointTurnAperture, +pointTurnAperture] around the local
+         * direction.
+         *
+         * This avoids searching in all directions: if we point turn, our best
+         * bet is to try to be aligned with the corridor ...
+         */
         double pointTurnAperture;
 
         /** The cost of having the terminal node not being aligned to the
