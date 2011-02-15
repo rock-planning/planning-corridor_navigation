@@ -376,16 +376,17 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
 
     pair<double, double> point_turn = make_pair(local_heading - cost_conf.pointTurnAperture, local_heading + cost_conf.pointTurnAperture);
 
-    INTERVAL_INTERSECTION intersection =
-        interval_intersection(normal, point_turn);
-    if (intersection != INTER_NONE)
-        possible_directions.push_back(interval_merge(intersection, normal, point_turn));
+    double b0_heading = vector_angles(base::Vector3d::UnitY(), horizon_boundaries[0] - current_node.getPose().position);
+    double b0b1 = vector_angles(horizon_boundaries[0] - current_node.getPose().position, horizon_boundaries[1] - current_node.getPose().position);
+    pair<double, double> horizon;
+    if (b0b1 > 0)
+        horizon = make_pair(b0_heading, b0_heading + b0b1);
     else
-    {
-        possible_directions.push_back(normal);
-        possible_directions.push_back(point_turn);
-    }
+        horizon = make_pair(b0_heading + b0b1, b0_heading);
 
+    possible_directions.push_back(normal);
+    possible_directions.push_back(point_turn);
+    possible_directions.push_back(horizon);
     return possible_directions;
 }
 
