@@ -29,7 +29,7 @@ static void computeCurveTangents(std::vector<base::Vector3d>& tangents, std::vec
     {
         int tg1_i = std::max(0, i - 4);
         base::Vector3d tg1 = curve[i] - curve[tg1_i];
-        int tg2_i = std::min(size, i + 4);
+        int tg2_i = std::min(size - 1, i + 4);
         base::Vector3d tg2 = curve[tg2_i] - curve[i];
         tangents.push_back((tg2 + tg1) / 2);
     }
