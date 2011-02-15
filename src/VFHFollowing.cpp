@@ -390,7 +390,7 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
     return possible_directions;
 }
 
-bool VFHFollowing::updateCost(TreeNode& node) const
+bool VFHFollowing::updateCost(TreeNode& node, bool is_terminal) const
 {
     int reference_point = node_info[node.getIndex()].reference_point;
 
@@ -443,6 +443,15 @@ bool VFHFollowing::updateCost(TreeNode& node) const
         cost += cost_conf.distanceToBorderWeight[0] +
             (cost_conf.safetyDistanceToBorder - d)
                 * cost_conf.distanceToBorderWeight[1];
+    }
+    if (is_terminal)
+    {
+        // Add some cost for the final direction (should be aligned with the
+        // horizon)
+        double angle_to_horizon = fabs(node.getDirection() - horizon_direction);
+        if (angle_to_horizon > 2 * M_PI)
+            angle_to_horizon -= 2 * M_PI;
+        cost += angle_to_horizon * cost_conf.finalDirectionCost;
     }
 
     if (cost != 0)

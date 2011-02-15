@@ -101,7 +101,7 @@ namespace corridor_navigation
                 double heading, double distance) const;
 
         //! Method required by vfh_star::TreeSearch
-        bool updateCost(vfh_star::TreeNode& node) const;
+        bool updateCost(vfh_star::TreeNode& node, bool is_terminal) const;
         //! Method required by vfh_star::TreeSearch
         bool validateNode(const vfh_star::TreeNode& node) const;
     };

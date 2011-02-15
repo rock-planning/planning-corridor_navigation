@@ -52,12 +52,22 @@ namespace corridor_navigation {
         
         double pointTurnAperture;
 
+        /** The cost of having the terminal node not being aligned to the
+         * corridor
+         *
+         * The additional cost is
+         *
+         *   (terminal_node_direction - local_direction) * finalDirectionCost
+         */
+        double finalDirectionCost;
+
         VFHFollowingConf()
             : safetyDistanceToBorder(0.5)
             , pointTurnThreshold(0)
             , pointTurnSpeed(0)
             , speedAfterPointTurn(1)
             , pointTurnAperture(M_PI/4)
+            , finalDirectionCost(0)
         {
             distanceToBorderWeight[0] = 0;
             distanceToBorderWeight[1] = 1;
