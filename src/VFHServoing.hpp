@@ -7,14 +7,14 @@
 #include <corridor_navigation/VFHServoingConf.hpp>
 #include <corridor_navigation/VFHStarDebugData.hpp>
 #include <envire/maps/Grid.hpp>
+#include "VFHServoingConf.hpp"
 
 namespace corridor_navigation
 {
     class VFHServoing: public vfh_star::VFHStar
     {
     public:
-        VFHServoing(const envire::Grid<vfh_star::Traversability> *tr)
-            : vfh(tr) {};
+        VFHServoing(const envire::Grid<vfh_star::Traversability> *tr);
 
         virtual ~VFHServoing() {};
 
@@ -22,7 +22,17 @@ namespace corridor_navigation
 
 	void clearDebugData();
 	
+	void setCostConf(const VFHServoingConf &conf);
+	
     private:
+	VFHServoingConf cost_conf;
+	
+	virtual double getHeuristic(const vfh_star::TreeNode& node) const;
+	
+	virtual double getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const;
+	
+	virtual bool validateNode(const vfh_star::TreeNode& node) const;
+	
         vfh_star::VFH vfh;
         mutable VFHStarDebugData debugData;
         AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const;

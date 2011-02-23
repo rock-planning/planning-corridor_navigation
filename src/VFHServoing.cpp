@@ -3,7 +3,10 @@
 
 using namespace corridor_navigation;
 using namespace vfh_star;
+using namespace Eigen;
 
+VFHServoing::VFHServoing(const envire::Grid< Traversability >* tr): vfh(tr)
+{
 VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory)
 {
     VFHStarDebugData dd_out;
@@ -37,6 +40,22 @@ void VFHServoing::clearDebugData()
     debugData.steps.clear();
 }
 
+void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
+{
+    cost_conf = conf;
+    search_conf.angularSamplingMin = asin((search_conf.stepDistance / 5.0) / search_conf.stepDistance);
+    vfh.setSenseRadius(conf.obstacleSenseRadius);
+    std::cout << "setting min sampling to " << search_conf.angularSamplingMin / M_PI * 180 << std::endl;
+}
+
+bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
+{
+    if(!vfh.validPosition(node.getPose())) {
+	return false;
+    }
+    return true;
+}
+
 std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
 {
     VFHDebugData dd;
@@ -57,4 +76,91 @@ std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNo
     
     return std::make_pair(ret, true);
 }
+
+double VFHServoing::getHeuristic(const vfh_star::TreeNode& node) const
+{   
+    double d_to_goal = algebraicDistanceToGoalLine(node.getPose().position);
+    if (d_to_goal < 0)
+        return 0;
+
+    return d_to_goal / cost_conf.speedProfile[0];
+}
+
+bool lineIntersection(const Vector3d &p1, const Vector3d &p2, const Vector3d &p3, const Vector3d &p4, Vector3d &intersectionPoint) {
+    double a1 = p2.y()-p1.y();
+    double b1 = p1.x()-p2.x();
+    double c1 = p2.x()*p1.y() - p1.x() * p2.y();// x2*y1 - x1*y2;  { a1*x + b1*y + c1 = 0 is line 1 }
+
+    double a2 = p4.y() - p3.y(); //y4-y3;
+    double b2 = p3.x() - p4.x(); //x3-x4;
+    double c2 = p4.x()*p3.y() - p3.x()*p4.y(); //x4*y3 - x3*y4;  { a2*x + b2*y + c2 = 0 is line 2 }
+
+    double denom = a1*b2 - a2*b1;
+    if( denom == 0 ) {
+	return false;
+    }
+
+    intersectionPoint.x() = (b1*c2 - b2*c1)/denom;
+    intersectionPoint.y() = (a2*c1 - a1*c2)/denom;
+    intersectionPoint.z() = 0;
+    
+    return true;
+}
+
+double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const
+{
+    double cost = 0;
+    double distance = search_conf.stepDistance;
+
+    Vector3d intersectionPoint;
+	
+    if(lineIntersection(parentNode.getPose().position, p.position, targetLinePoint, targetLinePoint + targetLine, intersectionPoint))
+    {
+	intersectionPoint.z() = parentNode.getPose().position.z();
+	double distToGoal = (parentNode.getPose().position - intersectionPoint).norm();
+// 	std::cout << "D " << direction << " P " << parentNode.getPose().position.transpose() << " PF " << p.position.transpose() << std::endl;
+// 	std::cout << "TLP " << targetLinePoint.transpose() << " TL " << targetLine.transpose() << std::endl;
+// 	std::cout << "IP " << intersectionPoint.transpose() << std::endl;
+// 	std::cout << "dist to goal " << distToGoal << std::endl;
+	if(distToGoal < distance)
+	{
+	    std::cout << "dist to goal " << distToGoal << std::endl;
+	    distance = distToGoal;
+	}
+    }
+    
+    
+    // Compute rate of turn
+    double angle_diff = angleDiff(direction ,parentNode.getDirection());
+
+    double desired_speed, current_speed;
+    double rate_of_turn = angle_diff / distance;
+
+//     std::cout << "Speed in m/s " << cost_conf.speedProfile[0] << " turning speed reduction in m/(rad*sec) " << cost_conf.speedProfile[1] << std::endl;
+
+    
+    // Check if we must point turn
+    if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && angle_diff > cost_conf.pointTurnThreshold))
+    {
+// 	std::cout << "Point turn " << angle_diff << " threshold " << cost_conf.pointTurnThreshold << std::endl;
+        desired_speed = cost_conf.speedAfterPointTurn;
+        cost += angle_diff / cost_conf.pointTurnSpeed;
+// 	std::cout << "Speeed  after point turn in m/s " << cost_conf.speedAfterPointTurn << std::endl;
+    }
+    else
+    {
+        desired_speed = cost_conf.speedProfile[0] - angle_diff * cost_conf.speedProfile[1];
+// 	std::cout << "No point turn speed : " << desired_speed << " base speed:" << cost_conf.speedProfile[0] << " angle diff " << angle_diff << " turn malus " << angle_diff * cost_conf.speedProfile[1];
+        if (rate_of_turn != 0)
+            cost += cost_conf.baseTurnCost;
+	
+    }
+
+    if(desired_speed < 0)
+	desired_speed = cost_conf.speedAfterPointTurn;
+
+//     std::cout << "resulting speed in m/s " << desired_speed << std::endl;
+
+    return cost + distance / desired_speed;
+} 
 
