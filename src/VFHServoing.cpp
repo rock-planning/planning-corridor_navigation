@@ -7,6 +7,8 @@ using namespace vfh_star;
 VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory)
 {
     VFHStarDebugData dd_out;
+    dd_out.horizonOrigin = getHorizonOrigin();
+    dd_out.horizonVector = getHorizonVector();
     for(std::vector<base::Waypoint>::const_iterator it = trajectory.begin(); it != trajectory.end(); it++)
     {
 	bool found = false;
