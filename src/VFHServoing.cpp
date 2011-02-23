@@ -62,6 +62,80 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
     std::vector< std::pair< double, double > > ret;
     ret = vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth, &dd);
     debugData.steps.push_back(dd);
+    std::vector< std::pair< double, double > > frontIntervals;
+
+    //oversampling interval
+    double intervalHalf = cost_conf.oversamplingWidth / 2.0;
+    
+    double curDir = curNode.getDirection();
+    if(curDir < 0)
+	curDir += 2*M_PI;
+    
+    if(curDir > 2*M_PI)
+	curDir -= 2*M_PI;
+    
+    double start = curDir - intervalHalf;
+    if(start < 0)
+	start += 2 * M_PI;
+    
+    double end = curDir + intervalHalf;
+    if(end > 2 * M_PI)
+	end -= 2 * M_PI;
+    
+    for(std::vector< std::pair< double, double > >::iterator it = ret.begin(); it != ret.end(); it++)
+    {
+	bool startInInterval = false;
+	bool endInInterval = false;
+	
+	//check for wrapping case
+	if(it->first > it->second) 
+	{
+// 	    std::cout << "Wrapping case " << it->first << " " << it->second << " dir " << curNode.getDirection() << " start " << start << " end " << end << std::endl;
+	    
+	    if((it->first < start && start < 2 * M_PI) || (0 < start && start < it->second))
+	    {
+		startInInterval = true;
+	    }
+
+	    if((it->first < end && end < 2 * M_PI) || (0 < end && end < it->second))
+	    {
+		endInInterval = true;
+	    }    
+	} else {
+	    //test if start is in interval
+	    if(it->first < start && start < it->second)
+	    {
+		startInInterval = true;
+	    }
+	    
+	    //test if end is in interval
+	    if(it->first < end && end < it->second)
+	    {
+		endInInterval = true;
+	    }
+	}
+	
+	if(startInInterval && endInInterval)
+	{
+	    ret.push_back(std::make_pair<double, double>(start, end));
+	    return ret;
+	}
+	
+	//start but no end
+	if(startInInterval)
+	{
+	    frontIntervals.push_back(std::make_pair<double, double>(start, it->second));
+	}
+	
+	//only end in interval
+	if(endInInterval)
+	{
+	    frontIntervals.push_back(std::make_pair<double, double>(it->first, end));
+	}
+    }
+    
+    ret.insert(ret.end(), frontIntervals.begin(), frontIntervals.end());
+    
     return ret;
 }
 
