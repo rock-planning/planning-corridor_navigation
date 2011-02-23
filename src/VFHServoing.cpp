@@ -31,6 +31,11 @@ VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypo
     return dd_out;
 }
 
+void VFHServoing::clearDebugData()
+{
+    debugData.generatedTrajectory.clear();
+    debugData.steps.clear();
+}
 
 std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
 {

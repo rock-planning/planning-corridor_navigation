@@ -20,6 +20,8 @@ namespace corridor_navigation
 
         VFHStarDebugData getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory);
 
+	void clearDebugData();
+	
     private:
         vfh_star::VFH vfh;
         mutable VFHStarDebugData debugData;
