@@ -7,6 +7,8 @@ using namespace Eigen;
 
 VFHServoing::VFHServoing(const envire::Grid< Traversability >* tr): vfh(tr)
 {
+}
+
 VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory)
 {
     VFHStarDebugData dd_out;
