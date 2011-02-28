@@ -572,11 +572,9 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
     double const distance = search_conf.stepDistance;
 
     // Compute rate of turn
-    double angle_diff = direction - parentNode.getDirection();
+    double angle_diff = fabs(direction - parentNode.getDirection());
     if (angle_diff > M_PI)
-        angle_diff -= 2 * M_PI;
-
-    angle_diff = fabs(angle_diff);
+        angle_diff = 2 * M_PI - angle_diff;
 
     double desired_speed, current_speed;
     double rate_of_turn = angle_diff / distance;
