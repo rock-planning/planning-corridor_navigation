@@ -31,8 +31,14 @@ namespace corridor_navigation {
          */
         double distanceToBorderWeight[2];
 
-        /** This factor gives us the linear speed w.r.t. the rate of turn
-         * (in rad/m). Speed is given by
+        /** This factor gives us the linear speed based on the rate of turn
+         *
+         * <ul>
+         *  <li>speedProfile[0] is the base speed
+         *  <li>speedProfile[1] is a speed vs. the rate of turn.
+         * </ul>
+         *
+         * Speed at a ceertain point is given by
          *   
          *   speed = speedProfile[0] - rate_of_turn * speedProfile[1]
          */
