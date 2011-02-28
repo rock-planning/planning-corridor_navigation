@@ -562,7 +562,7 @@ double VFHFollowing::getHeuristic(const TreeNode &node) const
     if (in_segment && d <= 0)
         return 0;
 
-    return fabs(d);
+    return fabs(d) / cost_conf.speedProfile[0];
 }
 
 
