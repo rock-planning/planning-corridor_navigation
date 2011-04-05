@@ -148,16 +148,10 @@ bool VFHServoing::isTerminalNode(const vfh_star::TreeNode& node) const
 {
     //test if unknown terrain is near
     double securityRadius = search_conf.robotWidth + search_conf.obstacleSafetyDistance; 
-
-    //TODO optimize me out
-    if(vfh.getWorstTerrainInRadius(node.getPose(), securityRadius) != TRAVERSABLE)
-    {
-	std::cout << "Final because of unknown " << node.getPose().position.transpose() << std::endl;
-	return true;
-    }
     
     double d = algebraicDistanceToGoalLine(node.getPose().position);
-    return d <= 0;
+    
+    return d<=0;
 }
 
 
@@ -203,11 +197,29 @@ bool lineIntersection(const Vector3d &p1, const Vector3d &p2, const Vector3d &p3
     return true;
 }
 
+std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start, double mainHeading, double horizon)
+{
+    std::vector< base::Waypoint > wholeTrajectory = VFHStar::getWaypoints(start, mainHeading, horizon);
+    std::vector< base::Waypoint > ret;
+    
+    for(std::vector< base::Waypoint >::const_iterator it = wholeTrajectory.begin(); it != wholeTrajectory.end(); it++)
+    {
+	base::Pose pos;
+	pos.position = it->position;
+	pos.orientation = AngleAxisd(it->heading, Vector3d::UnitZ());
+	if(vfh.getWorstTerrainInRadius(pos, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) == TRAVERSABLE)
+	    ret.push_back(*it);
+	else
+	    break;
+    }
+    
+    return ret;
+}
+
 double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const
 {
     double cost = 0;
     double distance = search_conf.stepDistance;
-
     Vector3d intersectionPoint;
 	
     if(lineIntersection(parentNode.getPose().position, p.position, targetLinePoint, targetLinePoint + targetLine, intersectionPoint))
@@ -228,7 +240,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     double current_speed = 0;
     
     //check for higher cost because of unknown terrain
-    vfh_star::Traversability worstTerrainInRadius = vfh.getWorstTerrainInRadius(p, search_conf.robotWidth);
+    vfh_star::Traversability worstTerrainInRadius = vfh.getWorstTerrainInRadius(p, search_conf.robotWidth + search_conf.obstacleSafetyDistance);
     switch(worstTerrainInRadius)
     {
 	case OBSTACLE:

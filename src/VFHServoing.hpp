@@ -24,6 +24,8 @@ namespace corridor_navigation
 	
 	void setCostConf(const VFHServoingConf &conf);
 	
+	std::vector<base::Waypoint> getWaypoints(base::Pose const& start, double mainHeading, double horizon);
+	
     private:
 	VFHServoingConf cost_conf;
 	
