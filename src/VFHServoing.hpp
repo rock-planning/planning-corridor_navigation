@@ -33,6 +33,8 @@ namespace corridor_navigation
 	
 	virtual bool validateNode(const vfh_star::TreeNode& node) const;
 	
+	virtual bool isTerminalNode(const vfh_star::TreeNode& node) const; 
+	
         vfh_star::VFH vfh;
         mutable VFHStarDebugData debugData;
         AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const;

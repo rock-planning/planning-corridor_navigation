@@ -141,6 +141,23 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
     return ret;
 }
 
+bool VFHServoing::isTerminalNode(const vfh_star::TreeNode& node) const
+{
+    //test if unknown terrain is near
+    double securityRadius = search_conf.robotWidth + search_conf.obstacleSafetyDistance; 
+
+    //TODO optimize me out
+    if(vfh.getWorstTerrainInRadius(node.getPose(), securityRadius) != TRAVERSABLE)
+    {
+	std::cout << "Final because of unknown " << node.getPose().position.transpose() << std::endl;
+	return true;
+    }
+    
+    double d = algebraicDistanceToGoalLine(node.getPose().position);
+    return d <= 0;
+}
+
+
 std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNode& curNode, double heading, double distance) const
 {
     //super omnidirectional robot
