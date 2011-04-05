@@ -52,6 +52,9 @@ void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
 
 bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
 {
+    if(node.getCost() == std::numeric_limits<double>::infinity())
+	return false;
+    
     if(!vfh.validPosition(node.getPose())) {
 	return false;
     }
@@ -222,38 +225,52 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 	}
     }
     
+    double current_speed = 0;
+    
+    //check for higher cost because of unknown terrain
+    vfh_star::Traversability worstTerrainInRadius = vfh.getWorstTerrainInRadius(p, search_conf.robotWidth);
+    switch(worstTerrainInRadius)
+    {
+	case OBSTACLE:
+	    //TODO this is perhaps bad, as it makes the robot stop inside a obstacle
+	    return std::numeric_limits<double>::infinity();
+	    break;
+	case UNCLASSIFIED:
+	    current_speed -= cost_conf.unknownSpeedPenalty;
+	    break;
+	case TRAVERSABLE:
+	    //perfect
+	    break;
+	case UNKNOWN_OBSTACLE:
+	    current_speed -= cost_conf.shadowSpeedPenalty;
+	    break;    
+    }
     
     // Compute rate of turn
     double angle_diff = angleDiff(direction ,parentNode.getDirection());
-
-    double desired_speed, current_speed;
     double rate_of_turn = angle_diff / distance;
 
 //     std::cout << "Speed in m/s " << cost_conf.speedProfile[0] << " turning speed reduction in m/(rad*sec) " << cost_conf.speedProfile[1] << std::endl;
-
     
     // Check if we must point turn
     if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && angle_diff > cost_conf.pointTurnThreshold))
     {
 // 	std::cout << "Point turn " << angle_diff << " threshold " << cost_conf.pointTurnThreshold << std::endl;
-        desired_speed = cost_conf.speedAfterPointTurn;
+        current_speed += cost_conf.speedAfterPointTurn;
         cost += angle_diff / cost_conf.pointTurnSpeed;
 // 	std::cout << "Speeed  after point turn in m/s " << cost_conf.speedAfterPointTurn << std::endl;
     }
     else
     {
-        desired_speed = cost_conf.speedProfile[0] - angle_diff * cost_conf.speedProfile[1];
+        current_speed += cost_conf.speedProfile[0] - angle_diff * cost_conf.speedProfile[1];
 // 	std::cout << "No point turn speed : " << desired_speed << " base speed:" << cost_conf.speedProfile[0] << " angle diff " << angle_diff << " turn malus " << angle_diff * cost_conf.speedProfile[1];
-        if (rate_of_turn != 0)
-            cost += cost_conf.baseTurnCost;
-	
     }
 
-    if(desired_speed < 0)
-	desired_speed = cost_conf.speedAfterPointTurn;
+    if(current_speed < 0)
+	current_speed = cost_conf.minimalSpeed;
 
 //     std::cout << "resulting speed in m/s " << desired_speed << std::endl;
 
-    return cost + distance / desired_speed;
+    return cost + distance / current_speed;
 } 
 

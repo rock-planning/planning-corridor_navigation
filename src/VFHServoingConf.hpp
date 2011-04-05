@@ -41,7 +41,20 @@ namespace corridor_navigation {
          * This cost is added to all movements that are not perfectly straight
          */
         double baseTurnCost;
-	VFHServoingConf()
+	
+	/**
+	 * Penaltys for driving over unknown or
+	 * terrain inside a sensor shadow
+	 * */
+	double unknownSpeedPenalty;
+	double shadowSpeedPenalty;
+	
+	/**
+	 * This is the minimal speed of the robot
+	 * */
+	double minimalSpeed;
+	
+	VFHServoingConf() : unknownSpeedPenalty(0.1), shadowSpeedPenalty(0.1), minimalSpeed(0.01)
 	{}
     };
 }
