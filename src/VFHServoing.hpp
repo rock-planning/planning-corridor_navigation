@@ -4,8 +4,8 @@
 #include <vfh_star/Types.h>
 #include <vfh_star/VFHStar.h>
 #include <vfh_star/TraversabilityGrid.h>
-#include <corridor_navigation/VFHServoingConf.hpp>
-#include <corridor_navigation/VFHStarDebugData.hpp>
+#include "VFHServoingConf.hpp"
+#include "VFHStarDebugData.hpp"
 #include <envire/maps/Grid.hpp>
 #include "VFHServoingConf.hpp"
 
@@ -14,7 +14,8 @@ namespace corridor_navigation
     class VFHServoing: public vfh_star::VFHStar
     {
     public:
-        VFHServoing(const envire::Grid<vfh_star::Traversability> *tr);
+	
+        VFHServoing();
 
         virtual ~VFHServoing() {};
 
@@ -23,8 +24,10 @@ namespace corridor_navigation
 	void clearDebugData();
 	
 	void setCostConf(const VFHServoingConf &conf);
-	
+
 	std::vector<base::Waypoint> getWaypoints(base::Pose const& start, double mainHeading, double horizon);
+	
+	void setNewTraversabilityGrid(const envire::Grid<vfh_star::Traversability> *tr);
 	
     private:
 	VFHServoingConf cost_conf;

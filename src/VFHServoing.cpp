@@ -1,13 +1,19 @@
-#include <corridor_navigation/VFHServoing.hpp>
+#include "VFHServoing.hpp"
 #include <vfh_star/VFHStar.h>
 
 using namespace corridor_navigation;
 using namespace vfh_star;
 using namespace Eigen;
 
-VFHServoing::VFHServoing(const envire::Grid< Traversability >* tr): vfh(tr)
+VFHServoing::VFHServoing(): vfh()
 {
 }
+
+void VFHServoing::setNewTraversabilityGrid(const envire::Grid< Traversability >* tr)
+{
+    vfh.setNewTraversabilityGrid(tr);
+}
+
 
 VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory)
 {
