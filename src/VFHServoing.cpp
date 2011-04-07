@@ -245,25 +245,28 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     
     double current_speed = 0;
     
-    //check for higher cost because of unknown terrain
-    vfh_star::Traversability worstTerrainInRadius = vfh.getWorstTerrainInRadius(p, search_conf.robotWidth + search_conf.obstacleSafetyDistance);
-    switch(worstTerrainInRadius)
-    {
-	case OBSTACLE:
-	    //TODO this is perhaps bad, as it makes the robot stop inside a obstacle
-	    return std::numeric_limits<double>::infinity();
-	    break;
-	case UNCLASSIFIED:
-	    current_speed -= cost_conf.unknownSpeedPenalty;
-	    break;
-	case TRAVERSABLE:
-	    //perfect
-	    break;
-	case UNKNOWN_OBSTACLE:
-	    current_speed -= cost_conf.shadowSpeedPenalty;
-	    break;    
-    }
+    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth + search_conf.obstacleSafetyDistance, 0.5);
     
+    const TerrainStatistic &innerStats(stats.first);
+    const TerrainStatistic &outerStats(stats.second);
+    
+    if(innerStats.getObstacleCount() > 0)
+	//TODO this is perhaps bad, as it makes the robot stop inside a obstacle
+	return std::numeric_limits<double>::infinity();
+
+    const double innerCnt = innerStats.getTerrainCount();
+    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
+				innerStats.getUnknownObstacleCount() / innerCnt * cost_conf.shadowSpeedPenalty;
+
+    const double outerCnt = outerStats.getTerrainCount();
+    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
+				outerStats.getUnknownCount() / outerCnt * cost_conf.unknownSpeedPenalty +
+				outerStats.getUnknownObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty;
+    
+//     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
+				
+    current_speed -= innerSpeedPenalty + outerSpeedPenalty;
+   
     // Compute rate of turn
     double angle_diff = angleDiff(direction ,parentNode.getDirection());
     double rate_of_turn = angle_diff / distance;
