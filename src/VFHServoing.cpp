@@ -245,7 +245,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     
     double current_speed = 0;
     
-    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth + search_conf.obstacleSafetyDistance, 0.5);
+    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance, 0.5);
     
     const TerrainStatistic &innerStats(stats.first);
     const TerrainStatistic &outerStats(stats.second);
