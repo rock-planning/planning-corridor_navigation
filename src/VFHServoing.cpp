@@ -245,7 +245,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     
     double current_speed = 0;
     
-    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance, 0.5);
+    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance, 0.3);
     
     const TerrainStatistic &innerStats(stats.first);
     const TerrainStatistic &outerStats(stats.second);
@@ -255,13 +255,22 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 	return std::numeric_limits<double>::infinity();
 
     const double innerCnt = innerStats.getTerrainCount();
-    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
-				innerStats.getUnknownObstacleCount() / innerCnt * cost_conf.shadowSpeedPenalty;
+/*    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
+      innerStats.getUnknownObstacleCount() / innerCnt * cost_conf.shadowSpeedPenalty;*/
 
     const double outerCnt = outerStats.getTerrainCount();
-    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
+/*    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
 				outerStats.getUnknownCount() / outerCnt * cost_conf.unknownSpeedPenalty +
-				outerStats.getUnknownObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty;
+				outerStats.getUnknownObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty;*/
+    double innerSpeedPenalty = 0;
+    if(innerStats.getUnknownObstacleCount())
+	innerSpeedPenalty += cost_conf.shadowSpeedPenalty;
+
+    double outerSpeedPenalty = 0;
+    if(outerStats.getObstacleCount())
+       outerSpeedPenalty += cost_conf.shadowSpeedPenalty;
+    if(outerStats.getUnknownObstacleCount())
+       outerSpeedPenalty += cost_conf.shadowSpeedPenalty;
     
 //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
 				
