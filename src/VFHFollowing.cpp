@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
+#include <iostream>
 
 using namespace corridor_navigation;
 using namespace std;
