@@ -244,8 +244,9 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     }
     
     double current_speed = 0;
-    
-    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance, 0.3);
+    const double outer_radius = 0.3;
+    const double inner_radius = search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance;
+    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, inner_radius, outer_radius);
     
     const TerrainStatistic &innerStats(stats.first);
     const TerrainStatistic &outerStats(stats.second);
@@ -268,9 +269,9 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 
     double outerSpeedPenalty = 0;
     if(outerStats.getObstacleCount())
-       outerSpeedPenalty += cost_conf.shadowSpeedPenalty;
+	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outerStats.getMinDistanceToTerrain(OBSTACLE) - inner_radius) / outer_radius;
     if(outerStats.getUnknownObstacleCount())
-       outerSpeedPenalty += cost_conf.shadowSpeedPenalty;
+	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outerStats.getMinDistanceToTerrain(UNKNOWN_OBSTACLE) - inner_radius) / outer_radius;
     
 //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
 				
@@ -296,9 +297,10 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 // 	std::cout << "No point turn speed : " << desired_speed << " base speed:" << cost_conf.speedProfile[0] << " angle diff " << angle_diff << " turn malus " << angle_diff * cost_conf.speedProfile[1];
     }
 
-    if(current_speed < 0)
+    if(current_speed < 0) {
+	std::cout << "Error speed is negative " << current_speed << std::endl;
 	current_speed = cost_conf.minimalSpeed;
-
+    }
 //     std::cout << "resulting speed in m/s " << desired_speed << std::endl;
 
     return cost + distance / current_speed;
