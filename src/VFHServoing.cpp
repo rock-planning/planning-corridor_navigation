@@ -269,9 +269,9 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 
     double outerSpeedPenalty = 0;
     if(outerStats.getObstacleCount())
-	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outerStats.getMinDistanceToTerrain(OBSTACLE) - inner_radius) / outer_radius;
+	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outer_radius - (outerStats.getMinDistanceToTerrain(OBSTACLE) - inner_radius)) / outer_radius;
     if(outerStats.getUnknownObstacleCount())
-	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outerStats.getMinDistanceToTerrain(UNKNOWN_OBSTACLE) - inner_radius) / outer_radius;
+	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outer_radius - (outerStats.getMinDistanceToTerrain(UNKNOWN_OBSTACLE) - inner_radius)) / outer_radius;
     
 //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
 				
