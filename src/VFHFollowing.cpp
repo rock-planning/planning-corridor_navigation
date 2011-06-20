@@ -24,8 +24,14 @@ static double vector_angles(base::Vector3d const& from, base::Vector3d const& to
 }
 
 VFHFollowing::VFHFollowing()
+    : distance_to_goal(0.5)
 {
     possible_directions.resize(1);
+}
+
+void VFHFollowing::setDistanceToGoal(double value)
+{
+    distance_to_goal = value;
 }
 
 void VFHFollowing::setCostConf(const VFHFollowingConf& conf)
@@ -102,7 +108,7 @@ double VFHFollowing::getInitialHorizonDistance() const
     return initial_horizon_distance;
 }
 
-base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_pose, double horizon)
+std::pair<base::geometry::Spline<3>, bool> VFHFollowing::getTrajectory(const base::Pose& current_pose, double horizon)
 {
     if (search_conf.discountFactor != 1)
     {
@@ -112,9 +118,10 @@ base::geometry::Spline<3> VFHFollowing::getTrajectory(const base::Pose& current_
 
     node_info.resize(search_conf.maxTreeSize);
 
-    findHorizon(current_pose.position, horizon);
+    bool within_range = findHorizon(current_pose.position, horizon);
+
     hasLastProjectedPosition = false;
-    return TreeSearch::getTrajectory(current_pose);
+    return std::make_pair(TreeSearch::getTrajectory(current_pose), within_range);
 }
 
 void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
@@ -224,7 +231,7 @@ void VFHFollowing::findBoundaryInterpolation(double median_t, base::Position con
     }
 }
 
-void VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
+bool VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
 {
     double t0 = corridor.median_curve.findOneClosestPoint(current_position);
 
@@ -281,6 +288,11 @@ void VFHFollowing::findHorizon(const base::Position& current_position, double de
     std::cerr << "  l=" << horizon_length << std::endl;
     std::cerr << "  dir=" << horizon_direction << std::endl;
     std::cerr << "  initial point-to-horizon: " << initial_horizon_distance << std::endl;
+
+    if (initial_horizon_distance < this->distance_to_goal && t1 == corridor.median_curve.getEndParam())
+        return true;
+
+    return false;
 }
 
 std::pair<double, bool> VFHFollowing::algebraicDistanceToGoal(const base::Position& pos) const

@@ -23,7 +23,7 @@ namespace corridor_navigation
         // Sets the corridor that should be followed
         void setCorridor(const corridors::Corridor& corridor);
 
-        base::geometry::Spline<3> getTrajectory(
+        std::pair<base::geometry::Spline<3>, bool> getTrajectory(
                 const base::Pose& current_position, double horizon);
 
         std::pair<base::Vector3d, base::Vector3d> getHorizon() const;
@@ -32,11 +32,18 @@ namespace corridor_navigation
 
         void computeHorizon(double median_t, base::Vector3d const& current_position);
 
+        /** Distance-to-goal below which the corridor follower announces that we
+         * reached our goal
+         */
+        void setDistanceToGoal(double value);
+
     private:
         // Configuration of the cost function
         VFHFollowingConf cost_conf;
 
-        void findHorizon(const base::Position& current_position,
+        double distance_to_goal;
+
+        bool findHorizon(const base::Position& current_position,
                 double desired_distance);
         void updateHorizonParameters(base::Position const& current_position);
         void findBoundaryInterpolation(double median_t, base::Position const& current_position, double desired_distance);
