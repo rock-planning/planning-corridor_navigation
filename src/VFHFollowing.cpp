@@ -318,50 +318,50 @@ bool VFHFollowing::isTerminalNode(const TreeNode& node) const
     return in_segment && (d <= 0);
 }
 
-enum INTERVAL_INTERSECTION
-{
-    INTER_NONE,
-    INTER_I2_I1,
-    INTER_I1_I2,
-    INTER_I2,
-    INTER_I1
-};
+// enum INTERVAL_INTERSECTION
+// {
+//     INTER_NONE,
+//     INTER_I2_I1,
+//     INTER_I1_I2,
+//     INTER_I2,
+//     INTER_I1
+// };
 
-static INTERVAL_INTERSECTION interval_intersection(pair<double, double> i1, pair<double, double> i2)
-{
-    float i2_second_in_i1 = (i2.second - i1.first) * (i2.second - i1.second);
-    float i2_first_in_i1  = (i2.first - i1.first) * (i2.first - i1.second);
-    if (i2_second_in_i1 < 0)
-    {
-        if (i2_first_in_i1 < 0)
-            return INTER_I1;
-        else
-            return INTER_I2_I1;
-    }
-    else if (i2_first_in_i1 < 0)
-        return INTER_I1_I2;
-    else
-    {
-        float i1_first_in_i2 = (i1.first - i2.first) * (i1.first - i2.second);
-        if (i1_first_in_i2 < 0)
-            return INTER_I2;
-        return INTER_NONE;
-    }
-}
+// static INTERVAL_INTERSECTION interval_intersection(pair<double, double> i1, pair<double, double> i2)
+// {
+//     float i2_second_in_i1 = (i2.second - i1.first) * (i2.second - i1.second);
+//     float i2_first_in_i1  = (i2.first - i1.first) * (i2.first - i1.second);
+//     if (i2_second_in_i1 < 0)
+//     {
+//         if (i2_first_in_i1 < 0)
+//             return INTER_I1;
+//         else
+//             return INTER_I2_I1;
+//     }
+//     else if (i2_first_in_i1 < 0)
+//         return INTER_I1_I2;
+//     else
+//     {
+//         float i1_first_in_i2 = (i1.first - i2.first) * (i1.first - i2.second);
+//         if (i1_first_in_i2 < 0)
+//             return INTER_I2;
+//         return INTER_NONE;
+//     }
+// }
 
-static pair<double, double> interval_merge(INTERVAL_INTERSECTION mode, pair<double, double> i1, pair<double, double> i2)
-{
-    switch(mode)
-    {
-        case INTER_I1: return i1;
-        case INTER_I2: return i2;
-        case INTER_I1_I2: return make_pair(i1.first, i2.second);
-        case INTER_I2_I1: return make_pair(i2.first, i1.second);
-        default:;
-    }
-    // never reached
-    return make_pair(0, 0);
-}
+// static pair<double, double> interval_merge(INTERVAL_INTERSECTION mode, pair<double, double> i1, pair<double, double> i2)
+// {
+//     switch(mode)
+//     {
+//         case INTER_I1: return i1;
+//         case INTER_I2: return i2;
+//         case INTER_I1_I2: return make_pair(i1.first, i2.second);
+//         case INTER_I2_I1: return make_pair(i2.first, i1.second);
+//         default:;
+//     }
+//     // never reached
+//     return make_pair(0, 0);
+// }
 
 vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const
 {
@@ -588,7 +588,7 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
     if (angle_diff > M_PI)
         angle_diff = 2 * M_PI - angle_diff;
 
-    double desired_speed, current_speed;
+    double desired_speed;
     double rate_of_turn = angle_diff / distance;
 
     // Check if we must point turn
