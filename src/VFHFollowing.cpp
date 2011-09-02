@@ -198,7 +198,7 @@ void VFHFollowing::updateHorizonParameters(base::Position const& current_positio
     // normal must be oriented in the direction opposite of travel so that
     // algebraicDistanceToGoal is > 0 for non-terminal nodes
     horizon_normal    = base::Vector3d::UnitZ().cross(horizon_tangent);
-    horizon_direction = base::Angle::normalizeRad(vector_angles(base::Vector3d::UnitY(), horizon_normal) + M_PI);
+    horizon_direction = vector_angles(base::Vector3d::UnitY(), -horizon_normal);
     initial_horizon_distance = algebraicDistanceToGoal(current_position).first;
 }
 
@@ -276,6 +276,52 @@ bool VFHFollowing::findHorizon(const base::Position& current_position, double de
     node_info[0].reference_point = getClosest(median_curve, base_point);
     node_info[0].inside = true;
 
+    desired_final_heading = base::unset<double>();
+    if (t1 == corridor.median_curve.getEndParam())
+    {
+        if (initial_horizon_distance < this->distance_to_goal)
+            return true;
+        else if (!base::isUnset(desired_terminal_heading))
+            desired_final_heading = desired_terminal_heading;
+    }
+    
+    if (base::isUnset(desired_final_heading))
+    {
+        // Two options left: either we use the horizon direction, or -- if we
+        // have a direct line of sight to the goal -- we use the goal's
+        // direction
+        base::Vector3d goal = corridor.median_curve.getEndPoint();
+
+        bool hasLineOfSight = true;
+        for (int boundary_idx = 0; hasLineOfSight && boundary_idx < 2; ++boundary_idx)
+        {
+            std::vector<double> points;
+            std::vector< std::pair<double, double> > curves;
+            corridor.boundary_curves[boundary_idx].findSegmentIntersections(current_position, goal, points, curves, 0.1);
+            for (size_t i = 0; i < curves.size(); ++i)
+            {
+                points.push_back(curves[i].first);
+                points.push_back(curves[i].second);
+            }
+
+            for (size_t i = 0; i < points.size(); ++i)
+            {
+                Eigen::Vector3d p = corridor.boundary_curves[boundary_idx].getPoint(points[i]);
+                if ((p - goal).norm() > this->distance_to_goal)
+                {
+                    hasLineOfSight = false;
+                    break;
+                }
+            }
+        }
+
+        if (hasLineOfSight)
+            desired_final_heading = vector_angles(Eigen::Vector3d::UnitY(), goal - current_position);
+        else
+            desired_final_heading = horizon_direction;
+
+    }
+
     std::cerr << "planning horizon" << std::endl;
     std::cerr << "  from=" << current_position.x() << " " << current_position.y() << " " << current_position.z() << std::endl;
     std::cerr << "  to=" << base_point.x() << " " << base_point.y() << " " << base_point.z() << std::endl;
@@ -289,16 +335,8 @@ bool VFHFollowing::findHorizon(const base::Position& current_position, double de
     std::cerr << "  t=" << horizon_tangent.x() << " " << horizon_tangent.y() << " " << horizon_tangent.z() << std::endl;
     std::cerr << "  l=" << horizon_length << std::endl;
     std::cerr << "  dir=" << horizon_direction << std::endl;
+    std::cerr << "  final_dir=" << desired_final_heading << std::endl;
     std::cerr << "  initial point-to-horizon: " << initial_horizon_distance << std::endl;
-
-    if (t1 == corridor.median_curve.getEndParam())
-    {
-        if (initial_horizon_distance < this->distance_to_goal)
-            return true;
-        else if (!base::isUnset<double>(desired_terminal_heading))
-            horizon_direction = desired_terminal_heading;
-    }
-
 
     return false;
 }
@@ -468,8 +506,8 @@ bool VFHFollowing::updateCost(TreeNode& node, bool is_terminal) const
     {
         // Add some cost for the final direction (should be aligned with the
         // horizon)
-        double angle_to_horizon = base::Angle::normalizeRad(node.getDirection() - horizon_direction);
-        cost += angle_to_horizon * cost_conf.finalDirectionCost;
+        double angle_to_horizon = base::Angle::normalizeRad(node.getDirection() - desired_final_heading);
+        cost += fabs(angle_to_horizon) * cost_conf.finalDirectionCost;
     }
 
     if (cost != 0)

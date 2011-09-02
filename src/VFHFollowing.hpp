@@ -70,8 +70,18 @@ namespace corridor_navigation
         base::Position horizon_normal;
         base::Position horizon_tangent;
         double horizon_length;
+        /** The outward direction of the horizon
+         */
         double horizon_direction;
+        /** The desired heading at the end of the corridor. Use
+         * base::unset<double>() to disable
+         */
         double desired_terminal_heading;
+        /** During search, this is the desired heading at the horizon. It is
+         * either set to horizon_direction, desired_terminal_heading or to the
+         * goal's direction if the goal is within our line of sight
+         */
+        double desired_final_heading;
         double initial_horizon_distance;
 
         // Cached values for getProjectedPose
