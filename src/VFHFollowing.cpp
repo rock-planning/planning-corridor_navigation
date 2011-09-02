@@ -7,6 +7,8 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/bind.hpp>
 #include <iostream>
+#include <base/float.h>
+#include <base/angle.h>
 
 using namespace corridor_navigation;
 using namespace std;
@@ -19,9 +21,7 @@ static double vector_angles(base::Vector3d const& from, base::Vector3d const& to
 {
     // WARNING: this works because from and to are in 2D !!!!
     double result = atan2(to.y(), to.x()) - atan2(from.y(), from.x());
-    if (result < -M_PI) result += 2 * M_PI;
-    else if (result > M_PI) result -= 2*M_PI;
-    return result;
+    return base::Angle::normalizeRad(result);
 }
 
 VFHFollowing::VFHFollowing()
@@ -125,9 +125,10 @@ std::pair<base::geometry::Spline<3>, bool> VFHFollowing::getTrajectory(const bas
     return std::make_pair(TreeSearch::getTrajectory(current_pose), within_range);
 }
 
-void VFHFollowing::setCorridor(const corridors::Corridor& corridor)
+void VFHFollowing::setCorridor(const corridors::Corridor& corridor, double desired_terminal_heading)
 {
     this->corridor = corridor;
+    this->desired_terminal_heading = desired_terminal_heading;
 
     std::vector<double> sampling_t;
     median_curve = corridor.median_curve.sample(search_conf.stepDistance / 4, &sampling_t);
@@ -197,7 +198,7 @@ void VFHFollowing::updateHorizonParameters(base::Position const& current_positio
     // normal must be oriented in the direction opposite of travel so that
     // algebraicDistanceToGoal is > 0 for non-terminal nodes
     horizon_normal    = base::Vector3d::UnitZ().cross(horizon_tangent);
-    horizon_direction = vector_angles(base::Vector3d::UnitY(), horizon_normal) + M_PI;
+    horizon_direction = base::Angle::normalizeRad(vector_angles(base::Vector3d::UnitY(), horizon_normal) + M_PI);
     initial_horizon_distance = algebraicDistanceToGoal(current_position).first;
 }
 
@@ -290,8 +291,14 @@ bool VFHFollowing::findHorizon(const base::Position& current_position, double de
     std::cerr << "  dir=" << horizon_direction << std::endl;
     std::cerr << "  initial point-to-horizon: " << initial_horizon_distance << std::endl;
 
-    if (initial_horizon_distance < this->distance_to_goal && t1 == corridor.median_curve.getEndParam())
-        return true;
+    if (t1 == corridor.median_curve.getEndParam())
+    {
+        if (initial_horizon_distance < this->distance_to_goal)
+            return true;
+        else if (!base::isUnset<double>(desired_terminal_heading))
+            horizon_direction = desired_terminal_heading;
+    }
+
 
     return false;
 }
@@ -461,9 +468,7 @@ bool VFHFollowing::updateCost(TreeNode& node, bool is_terminal) const
     {
         // Add some cost for the final direction (should be aligned with the
         // horizon)
-        double angle_to_horizon = fabs(node.getDirection() - horizon_direction);
-        if (angle_to_horizon > 2 * M_PI)
-            angle_to_horizon -= 2 * M_PI;
+        double angle_to_horizon = base::Angle::normalizeRad(node.getDirection() - horizon_direction);
         cost += angle_to_horizon * cost_conf.finalDirectionCost;
     }
 
@@ -585,10 +590,7 @@ double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, co
     double const distance = search_conf.stepDistance;
 
     // Compute rate of turn
-    double angle_diff = fabs(direction - parentNode.getDirection());
-    if (angle_diff > M_PI)
-        angle_diff = 2 * M_PI - angle_diff;
-
+    double angle_diff = base::Angle::normalizeRad(direction - parentNode.getDirection());
     double desired_speed;
     double rate_of_turn = angle_diff / distance;
 

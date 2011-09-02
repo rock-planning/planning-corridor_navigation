@@ -21,7 +21,7 @@ namespace corridor_navigation
         void setCostConf(const VFHFollowingConf& conf);
 
         // Sets the corridor that should be followed
-        void setCorridor(const corridors::Corridor& corridor);
+        void setCorridor(const corridors::Corridor& corridor, double desired_terminal_heading = base::unset<double>());
 
         std::pair<base::geometry::Spline<3>, bool> getTrajectory(
                 const base::Pose& current_position, double horizon);
@@ -71,6 +71,7 @@ namespace corridor_navigation
         base::Position horizon_tangent;
         double horizon_length;
         double horizon_direction;
+        double desired_terminal_heading;
         double initial_horizon_distance;
 
         // Cached values for getProjectedPose

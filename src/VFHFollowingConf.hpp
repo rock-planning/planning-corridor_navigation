@@ -1,6 +1,8 @@
 #ifndef CORRIDOR_NAVIGATION_VFHFOLLOWING_CONF_HPP
 #define CORRIDOR_NAVIGATION_VFHFOLLOWING_CONF_HPP
 
+#include <base/float.h>
+
 namespace corridor_navigation {
     /** Configuration structure for VFHFollowing
      *
@@ -74,6 +76,15 @@ namespace corridor_navigation {
          */
         double finalDirectionCost;
 
+        /** The desired final heading at the end of the corridor
+         *
+         * At the end of the corridor, the horizon direction is not a valid
+         * indicator for final heading. This parameter, if set, is used to
+         * replace the horizon's direction so that the robot ends at a valid
+         * heading
+         */
+        double desiredFinalHeading;
+
         /** Some systems are really bad at turning. For those, it is best to
          * force going straight as much as possible.
          *
@@ -88,6 +99,7 @@ namespace corridor_navigation {
             , speedAfterPointTurn(1)
             , pointTurnAperture(M_PI/4)
             , finalDirectionCost(0)
+            , desiredFinalHeading(base::unset<double>())
             , baseTurnCost(0.5)
         {
             distanceToBorderWeight[0] = 0;
