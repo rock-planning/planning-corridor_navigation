@@ -362,7 +362,7 @@ bool VFHFollowing::isTerminalNode(const TreeNode& node) const
     double d;
     bool in_segment;
     boost::tie(d, in_segment) = algebraicDistanceToGoal(node.getPose().position);
-    return in_segment && (d <= 0);
+    return in_segment && (d <= 0.01);
 }
 
 // enum INTERVAL_INTERSECTION
