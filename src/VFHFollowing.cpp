@@ -9,6 +9,7 @@
 #include <iostream>
 #include <base/float.h>
 #include <base/angle.h>
+#include <corridor_navigation/Geometry.hpp>
 
 using namespace corridor_navigation;
 using namespace std;
@@ -607,6 +608,14 @@ std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const vfh_star::TreeN
     base::Pose ret;
     ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
     ret.position = curNode.getPose().position + ret.orientation * p;
+
+    Eigen::Vector3d intersection_point;
+    if (segmentIntersection(curNode.getPose().position, ret.position, horizon_boundaries[0], horizon_boundaries[1], intersection_point))
+    {
+	intersection_point.z() = curNode.getPose().position.z();
+        ret.position = intersection_point;
+    }
+
     return std::make_pair(ret, true);
 }
 
@@ -621,41 +630,10 @@ double VFHFollowing::getHeuristic(const TreeNode &node) const
     return fabs(d) / cost_conf.speedProfile[0];
 }
 
-static bool lineIntersection(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2, const Eigen::Vector3d &p3, const Eigen::Vector3d &p4, Eigen::Vector3d &intersectionPoint) {
-    double a1 = p2.y()-p1.y();
-    double b1 = p1.x()-p2.x();
-    double c1 = p2.x()*p1.y() - p1.x() * p2.y();// x2*y1 - x1*y2;  { a1*x + b1*y + c1 = 0 is line 1 }
-
-    double a2 = p4.y() - p3.y(); //y4-y3;
-    double b2 = p3.x() - p4.x(); //x3-x4;
-    double c2 = p4.x()*p3.y() - p3.x()*p4.y(); //x4*y3 - x3*y4;  { a2*x + b2*y + c2 = 0 is line 2 }
-
-    double denom = a1*b2 - a2*b1;
-    if( denom == 0 ) {
-	return false;
-    }
-
-    intersectionPoint.x() = (b1*c2 - b2*c1)/denom;
-    intersectionPoint.y() = (a2*c1 - a1*c2)/denom;
-    intersectionPoint.z() = 0;
-    
-    return true;
-}
-
-
 double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, const TreeNode& parentNode) const
 {
     double cost = 0;
-    double distance = search_conf.stepDistance;
-
-    Eigen::Vector3d intersection_point;
-    if (lineIntersection(parentNode.getPose().position, pose.position, horizon_boundaries[0], horizon_boundaries[1], intersection_point))
-    {
-	intersection_point.z() = parentNode.getPose().position.z();
-	double distToGoal = (parentNode.getPose().position - intersection_point).norm();
-	if(distToGoal < distance)
-	    distance = distToGoal;
-    }
+    double distance = (pose.position - parentNode.getPose().position).norm();
 
     // Compute rate of turn
     double angle_diff = base::Angle::normalizeRad(direction - parentNode.getDirection());
