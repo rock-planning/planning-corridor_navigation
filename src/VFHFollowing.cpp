@@ -236,7 +236,7 @@ void VFHFollowing::findBoundaryInterpolation(double median_t, base::Position con
 
 bool VFHFollowing::findHorizon(const base::Position& current_position, double desired_distance)
 {
-    double t0 = corridor.median_curve.findOneClosestPoint(current_position);
+    double t0 = corridor.median_curve.findOneClosestPoint(current_position, 0.01);
 
     double t1, advance;
     boost::tie(t1, advance) =
