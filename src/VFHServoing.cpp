@@ -167,7 +167,19 @@ std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNo
     base::Vector3d p(0, distance, 0);
     
     base::Pose ret;
-    ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
+    
+    // Compute rate of turn
+    double angle_diff = angleDiff(heading ,curNode.getDirection());
+    
+    //compute inveser heading if driving backwards
+    if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
+    {
+	ret.orientation = Eigen::AngleAxisd(M_PI - heading, base::Vector3d::UnitZ());
+    }
+    else 
+    {
+	ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
+    }
     ret.position = curNode.getPose().position + ret.orientation * p;
     
     return std::make_pair(ret, true);
@@ -279,7 +291,15 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
    
     // Compute rate of turn
     double angle_diff = angleDiff(direction ,parentNode.getDirection());
-    double rate_of_turn = angle_diff / distance;
+    
+    //make backwards driving cheap
+    if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
+    {
+	angle_diff = M_PI - angle_diff;
+	cost += 0.05;
+    }
+    
+//     double rate_of_turn = angle_diff / distance;
 
 //     std::cout << "Speed in m/s " << cost_conf.speedProfile[0] << " turning speed reduction in m/(rad*sec) " << cost_conf.speedProfile[1] << std::endl;
     
