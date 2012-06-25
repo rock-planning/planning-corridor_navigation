@@ -287,7 +287,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && angle_diff > cost_conf.pointTurnThreshold))
     {
 // 	std::cout << "Point turn " << angle_diff << " threshold " << cost_conf.pointTurnThreshold << std::endl;
-        current_speed += cost_conf.speedAfterPointTurn;
+        current_speed = cost_conf.speedAfterPointTurn;
         cost += angle_diff / cost_conf.pointTurnSpeed;
 // 	std::cout << "Speeed  after point turn in m/s " << cost_conf.speedAfterPointTurn << std::endl;
     }
