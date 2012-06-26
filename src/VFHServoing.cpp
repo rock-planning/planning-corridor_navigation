@@ -175,12 +175,13 @@ std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNo
     if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
     {
 	ret.orientation = Eigen::AngleAxisd(M_PI - heading, base::Vector3d::UnitZ());
+	ret.position = curNode.getPose().position - ret.orientation * p;
     }
     else 
     {
 	ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
+	ret.position = curNode.getPose().position + ret.orientation * p;
     }
-    ret.position = curNode.getPose().position + ret.orientation * p;
     
     return std::make_pair(ret, true);
 }
