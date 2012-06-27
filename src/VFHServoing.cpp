@@ -297,7 +297,6 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
     {
 	angle_diff = M_PI - angle_diff;
-	cost += 0.05;
     }
     
 //     double rate_of_turn = angle_diff / distance;
