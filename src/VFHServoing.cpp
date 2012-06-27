@@ -169,7 +169,7 @@ std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNo
     base::Pose ret;
     
     // Compute rate of turn
-    double angle_diff = angleDiff(heading ,curNode.getDirection());
+    double angle_diff = angleDiff(heading ,curNode.getPose().getYaw());
     
     //compute inveser heading if driving backwards
     if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
