@@ -291,10 +291,11 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     current_speed -= innerSpeedPenalty + outerSpeedPenalty;
    
     // Compute rate of turn
-    double angle_diff = angleDiff(direction ,parentNode.getDirection());
+    double angle_diff = angleDiff(direction ,parentNode.getPose().getYaw());
     
+    bool driveBackward = angle_diff > M_PI - cost_conf.pointTurnThreshold;
     //make backwards driving cheap
-    if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
+    if(driveBackward)
     {
 	angle_diff = M_PI - angle_diff;
     }
@@ -322,6 +323,17 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 	current_speed = cost_conf.minimalSpeed;
     }
 //     std::cout << "resulting speed in m/s " << desired_speed << std::endl;
+
+    //make direction changes expensive
+    if(!parentNode.isRoot())
+    {
+	bool parentWasBackward =  angleDiff(direction, parentNode.getPose().getYaw()) > M_PI - cost_conf.pointTurnThreshold;
+	if(parentWasBackward != driveBackward)
+	{
+	    cost += 0.05;
+	    current_speed = cost_conf.minimalSpeed;
+	}
+    }
 
     return cost + distance / current_speed;
 } 
