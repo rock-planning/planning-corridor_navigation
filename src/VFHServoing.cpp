@@ -294,6 +294,11 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     double angle_diff = angleDiff(direction ,parentNode.getPose().getYaw());
     
     bool driveBackward = angle_diff > M_PI - cost_conf.pointTurnThreshold;
+ 
+    //do not allow to drive backwards into unknown terrain
+    if(driveBackward && innerStats.getUnknownCount() > 3)
+	return std::numeric_limits<double>::infinity();
+    
     //make backwards driving cheap
     if(driveBackward)
     {
