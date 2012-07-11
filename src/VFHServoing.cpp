@@ -329,7 +329,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     current_speed -= innerSpeedPenalty + outerSpeedPenalty;
    
     // Compute rate of turn
-    double angle_diff = angleDiff(direction ,parentNode.getPose().getYaw());
+    double angle_diff = angleDiff(p.getYaw() ,parentNode.getPose().getYaw());
     
     bool driveBackward = angleDiff(direction ,p.getYaw()) > M_PI - cost_conf.pointTurnThreshold;
  
