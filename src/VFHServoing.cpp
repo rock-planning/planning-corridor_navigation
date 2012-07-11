@@ -1,5 +1,6 @@
 #include "VFHServoing.hpp"
 #include <vfh_star/VFHStar.h>
+#include <base/angle.h>
 
 using namespace corridor_navigation;
 using namespace vfh_star;
@@ -75,6 +76,11 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
     debugData.steps.push_back(dd);
     std::vector< std::pair< double, double > > frontIntervals;
 
+    if(curNode.isRoot() && ret.empty())
+    {
+	ret.push_back(std::make_pair(0, 2*M_PI));
+    }
+    
     //oversampling interval
     double intervalHalf = cost_conf.oversamplingWidth / 2.0;
     
@@ -233,6 +239,38 @@ std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start,
     }
     
     return ret;
+}
+
+std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory)
+{    
+    TreeNode const* curNode = computePath(start, mainHeading, horizon, body2Trajectory);
+    if (!curNode)
+        return std::vector<base::Trajectory>();
+    
+    std::vector<const vfh_star::TreeNode *> nodes;
+    const vfh_star::TreeNode* nodeTmp = curNode;
+    int size = curNode->getDepth() + 1;
+    for (int i = 0; i < size; ++i)
+    {
+	nodes.insert(nodes.begin(), nodeTmp);
+	if (nodeTmp->isRoot() && i != size - 1)
+            throw std::runtime_error("internal error in buildTrajectoryTo: found a root node even though the trajectory is not finished");
+	nodeTmp = nodeTmp->getParent();
+    }    
+
+    //look for anything that is not traversable on
+    //the computed route, e.g unknow or shadow
+    int i;
+    for (i = 0; i < size; ++i)
+    {
+	if(vfh.getWorstTerrainInRadius(nodes[i]->getPose(), search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) != TRAVERSABLE)
+	    break;
+    }
+    
+    //cut off the unknown part
+    nodes.resize(i);
+     
+    return tree.buildTrajectoriesTo(nodes, body2Trajectory);
 }
 
 double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const

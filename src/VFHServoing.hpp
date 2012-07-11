@@ -29,6 +29,7 @@ namespace corridor_navigation
 	
 	void setNewTraversabilityGrid(const envire::Grid<vfh_star::Traversability> *tr);
 	
+	std::vector< base::Trajectory > getTrajectories(const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory);
     private:
 	VFHServoingConf cost_conf;
 	
