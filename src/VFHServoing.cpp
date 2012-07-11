@@ -328,10 +328,13 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 				
     current_speed -= innerSpeedPenalty + outerSpeedPenalty;
    
-    // Compute rate of turn
-    double angle_diff = angleDiff(p.getYaw() ,parentNode.getPose().getYaw());
+    double curHeading = p.getYaw();
+    double parentHeading = parentNode.getPose().getYaw();
     
-    bool driveBackward = angleDiff(direction ,p.getYaw()) > M_PI - cost_conf.pointTurnThreshold;
+    // Compute rate of turn
+    double angle_diff = angleDiff(curHeading, parentHeading);
+    
+    bool driveBackward = angleDiff(direction ,curHeading) > M_PI - cost_conf.pointTurnThreshold;
  
     //do not allow to drive backwards into unknown terrain
     if(driveBackward && innerStats.getUnknownCount() > 3)
@@ -370,7 +373,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     //make direction changes expensive
     if(!parentNode.isRoot())
     {
-	bool parentWasBackward =  angleDiff(parentNode.getDirection(), parentNode.getPose().getYaw()) > M_PI - cost_conf.pointTurnThreshold;
+	bool parentWasBackward =  angleDiff(parentNode.getDirection(), parentHeading) > M_PI - cost_conf.pointTurnThreshold;
 	if(parentWasBackward != driveBackward)
 	{
 	    cost += 0.05;
