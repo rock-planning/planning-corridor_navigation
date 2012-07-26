@@ -238,6 +238,20 @@ bool VFHFollowing::findHorizon(const base::Position& current_position, double de
 {
     double t0 = corridor.median_curve.findOneClosestPoint(current_position, 0.01);
 
+    base::geometry::Spline3 &median(corridor.median_curve);
+    std::cout << "Median curve start " << median.getStartPoint().transpose() <<
+		" end " << median.getEndPoint().transpose() <<  std::endl <<
+		" start param " << median.getStartParam() << " end param " << median.getEndParam() << std::endl << 
+		" lenght " << median.length(median.getStartParam(), median.getEndParam(), 0.01) << std::endl;
+		
+    std::vector<base::geometry::Spline3::vector_t> points = median.sample(0.01);
+    for(std::vector<base::geometry::Spline3::vector_t>::iterator it = points.begin(); it != points.end();it++)
+    {
+	std::cout << "P " << it->transpose() << std::endl;
+    }
+    
+    std::cout << "Closes point to pos " << current_position.transpose() << " is " << median.getPoint(t0).transpose() << std::endl;
+    
     double t1, advance;
     boost::tie(t1, advance) =
         corridor.median_curve.advance(t0, desired_distance, search_conf.stepDistance / 5);
@@ -281,7 +295,10 @@ bool VFHFollowing::findHorizon(const base::Position& current_position, double de
     if (t1 == corridor.median_curve.getEndParam())
     {
         if (initial_horizon_distance < this->distance_to_goal)
+	{
+	    std::cout << "Distance to horizon is " << initial_horizon_distance << " we want to be " << distance_to_goal << "m to the horizon" << std::endl;
             return true;
+	}
         else if (!base::isUnset(desired_terminal_heading))
             desired_final_heading = desired_terminal_heading;
     }

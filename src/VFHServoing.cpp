@@ -8,6 +8,7 @@ using namespace Eigen;
 
 VFHServoing::VFHServoing(): vfh()
 {
+    lastDirection = base::unset<double>();
 }
 
 void VFHServoing::setNewTraversabilityGrid(const envire::Grid< Traversability >* tr)
@@ -194,6 +195,8 @@ std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNo
     // Compute rate of turn
     double angle_diff = angleDiff(heading ,curNode.getPose().getYaw());
     
+//     std::cout << "Angle diff " << angle_diff << " heading " << heading << " yaw " << curNode.getPose().getYaw() << std::endl; 
+    
     //compute inveser heading if driving backwards
     if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
     {
@@ -260,6 +263,45 @@ std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start,
 
 std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory)
 {    
+    lastDirection = base::unset<double>();
+    
+    if(!lastTrajectories.empty())
+    {
+	//determine the current heading from the last trajectories
+	
+	//we assume we are still on the first trajectorie
+	base::Trajectory first = lastTrajectories.front();
+	
+	Vector3d posTrajectory((body2Trajectory * start.toTransform().inverse()).inverse().translation());
+	
+	double param = first.spline.findOneClosestPoint(posTrajectory, first.spline.getStartParam(), 0.001);
+	
+	std::cout << "startpose " << start.position.transpose() << " " << start.getYaw() << " in body frame " << posTrajectory.transpose() <<  std::endl; 
+	
+	if(param != first.spline.getEndParam())
+	{	
+	    std::pair<Vector3d, Vector3d> pointAndTanget = first.spline.getPointAndTangent(param);
+
+	    std::cout << "closest point " << pointAndTanget.first.transpose()<< " tangent " << pointAndTanget.second.transpose() << std::endl; 
+
+	    Eigen::Vector3d v1 = Eigen::Vector3d::UnitY();
+	    Eigen::Vector3d v2 = pointAndTanget.second;
+	    lastDirection = atan2(v2.y(),v2.x()) - atan2(v1.y(),v1.x());
+	    
+	    if(lastDirection < 0)
+		lastDirection += 2*M_PI;
+	
+	    if(lastDirection > 2*M_PI)
+		lastDirection -= 2*M_PI;
+	    
+	    //invert direction if driving backwards
+	    if(first.speed < 0)
+		lastDirection *= -1;
+	    
+	    std::cout << "Lastdir is " << lastDirection << std::endl;
+	}
+    }
+    
     TreeNode const* curNode = computePath(start, mainHeading, horizon, body2Trajectory);
     if (!curNode)
         return std::vector<base::Trajectory>();
@@ -267,8 +309,10 @@ std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& s
     std::vector<const vfh_star::TreeNode *> nodes;
     const vfh_star::TreeNode* nodeTmp = curNode;
     int size = curNode->getDepth() + 1;
+    std::cout << "Path in bodyCenter Frame" << std::endl;
     for (int i = 0; i < size; ++i)
     {
+	std::cout << nodeTmp->getPose().position.transpose() << std::endl;
 	nodes.insert(nodes.begin(), nodeTmp);
 	if (nodeTmp->isRoot() && i != size - 1)
             throw std::runtime_error("internal error in buildTrajectoryTo: found a root node even though the trajectory is not finished");
@@ -284,10 +328,16 @@ std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& s
 	    break;
     }
     
+    if(i != size)
+    {
+	std::cout << "Warning cutting path at position " << i << " of " << size << std::endl;
+    }
+    
     //cut off the unknown part
     nodes.resize(i);
      
-    return tree.buildTrajectoriesTo(nodes, body2Trajectory);
+    lastTrajectories = tree.buildTrajectoriesTo(nodes, body2Trajectory);
+    return lastTrajectories;
 }
 
 double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const
@@ -306,7 +356,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 // 	std::cout << "dist to goal " << distToGoal << std::endl;
 	if(distToGoal < distance)
 	{
-	    std::cout << "dist to goal " << distToGoal << std::endl;
+// 	    std::cout << "dist to goal " << distToGoal << std::endl;
 	    distance = distToGoal;
 	}
     }
@@ -361,8 +411,11 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     if(driveBackward)
     {
 	angle_diff = M_PI - angle_diff;
+// 	std::cout << "backwards" << std::endl;
+	
+// 	cost += 0.05;
     }
-    
+
 //     double rate_of_turn = angle_diff / distance;
 
 //     std::cout << "Speed in m/s " << cost_conf.speedProfile[0] << " turning speed reduction in m/(rad*sec) " << cost_conf.speedProfile[1] << std::endl;
@@ -397,6 +450,21 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 	    current_speed = cost_conf.minimalSpeed;
 	}
     }
+
+    if(parentNode.isRoot() && !base::isUnset<double>(lastDirection))
+    {
+	std::cout << "last dir is  " << lastDirection << " curDir " << direction << std::endl;
+    } 
+
+    //make not sticking to the last direction expensive
+    if(parentNode.isRoot() && !base::isUnset<double>(lastDirection) && fabs(lastDirection - direction) > 0.001)
+    {
+	std::cout << "Not last dir" << std::endl;
+// 	current_speed = cost_conf.minimalSpeed;
+	//cost *= 2;
+    } 
+    
+//     std::cout << "Node : from " << parentNode.getPose().position.transpose() << " to " << p.position.transpose() << " direction " << direction/M_PI*180.0 << " parent dir " << parentNode.getPose().getYaw()/M_PI*180.0 << " cost " << cost + distance / current_speed << std::endl;
 
     return cost + distance / current_speed;
 } 
