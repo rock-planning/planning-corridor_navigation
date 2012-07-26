@@ -98,11 +98,25 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
     double end = curDir + intervalHalf;
     if(end > 2 * M_PI)
 	end -= 2 * M_PI;
+
+    bool insertLast = false;
     
     for(std::vector< std::pair< double, double > >::iterator it = ret.begin(); it != ret.end(); it++)
     {
 	bool startInInterval = false;
 	bool endInInterval = false;
+
+	if(curNode.isRoot() && !base::isUnset<double>(lastDirection))
+	{
+	    base::Angle leftAngle = base::Angle::fromRad(it->first);
+	    base::Angle rightAngle = base::Angle::fromRad(it->second);
+	    
+	    base::Angle lastDirAngle = base::Angle::fromRad(lastDirection);
+	    if(lastDirAngle.isInRange(leftAngle, rightAngle))
+	    {
+		insertLast = true;
+	    }
+	}
 	
 	//check for wrapping case
 	if(it->first > it->second) 
@@ -134,8 +148,8 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
 	
 	if(startInInterval && endInInterval)
 	{
-	    ret.push_back(std::make_pair<double, double>(start, end));
-	    return ret;
+	    frontIntervals.push_back(std::make_pair<double, double>(start, end));
+	    break;
 	}
 	
 	//start but no end
@@ -152,6 +166,9 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
     }
     
     ret.insert(ret.end(), frontIntervals.begin(), frontIntervals.end());
+
+    if(insertLast)
+	ret.insert(ret.begin(), std::make_pair<double, double>(lastDirection, lastDirection));
     
     return ret;
 }
