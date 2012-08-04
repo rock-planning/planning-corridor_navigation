@@ -241,11 +241,14 @@ std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start,
     return ret;
 }
 
-std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory)
+VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory)
 {    
     TreeNode const* curNode = computePath(start, mainHeading, horizon, body2Trajectory);
     if (!curNode)
-        return std::vector<base::Trajectory>();
+    {
+	result = std::vector<base::Trajectory>();
+        return NO_SOLUTION;
+    }
     
     std::vector<const vfh_star::TreeNode *> nodes;
     const vfh_star::TreeNode* nodeTmp = curNode;
@@ -264,13 +267,23 @@ std::vector< base::Trajectory > VFHServoing::getTrajectories(const base::Pose& s
     for (i = 0; i < size; ++i)
     {
 	if(vfh.getWorstTerrainInRadius(nodes[i]->getPose(), search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) != TRAVERSABLE)
+	{
+	    std::cout << "Cutting trajectory at pos " << i << " from " << size << std::endl;
 	    break;
+	}
     }
     
     //cut off the unknown part
     nodes.resize(i);
+    
+    if(i == 0)
+    {
+	result = std::vector<base::Trajectory>();
+	return TRAJECTORY_THROUGH_UNKNOWN;
+    }
      
-    return tree.buildTrajectoriesTo(nodes, body2Trajectory);
+    result = tree.buildTrajectoriesTo(nodes, body2Trajectory);
+    return TRAJECTORY_OK;
 }
 
 double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const

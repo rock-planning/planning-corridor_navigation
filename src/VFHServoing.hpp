@@ -15,6 +15,13 @@ namespace corridor_navigation
     {
     public:
 	
+	enum ServoingStatus
+	{
+	    NO_SOLUTION,
+	    TRAJECTORY_THROUGH_UNKNOWN,
+	    TRAJECTORY_OK,
+	};
+	
         VFHServoing();
 
         virtual ~VFHServoing() {};
@@ -29,7 +36,7 @@ namespace corridor_navigation
 	
 	void setNewTraversabilityGrid(const envire::Grid<vfh_star::Traversability> *tr);
 	
-	std::vector< base::Trajectory > getTrajectories(const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory);
+	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory);
     private:
 	VFHServoingConf cost_conf;
 	
