@@ -32,10 +32,36 @@ namespace corridor_navigation
 	
 	void setCostConf(const VFHServoingConf &conf);
 
+        /**
+         * Computes a path from the start pose to a 
+         * line that is 'horizon' meters away from
+         * the start pose and ortogonal to 
+         * mainHeading.
+         * 
+         * Returns a series of waypoints that lead to the horizon
+         *      or an emptry vector is no path could be found.
+         * */
 	std::vector<base::Waypoint> getWaypoints(base::Pose const& start, double mainHeading, double horizon);
 	
+        /**
+         * Sets a new traversability map.
+         * The map is used while computing the optimal path
+         * to the horizon.
+         * */
 	void setNewTraversabilityGrid(const envire::Grid<vfh_star::Traversability> *tr);
 	
+        /**
+         * Computes a path from the start pose to a 
+         * line that is 'horizon' meters away from
+         * the start pose and ortogonal to 
+         * mainHeading.
+         * 
+         * The trajectory is returned in the 'result' parameter.
+         * The result is transformed into the 'trajectory' frame using 
+         * the given parameter 'body2Trajectory'.
+         * 
+         * Returns wether the planning was successfull.
+         * */
 	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory);
     private:
 	VFHServoingConf cost_conf;
