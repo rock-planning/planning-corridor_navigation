@@ -600,23 +600,31 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
     return (parent_is_outside || !child_is_outside);
 }
 
-std::pair<base::Pose, bool> VFHFollowing::getProjectedPose(const vfh_star::TreeNode& curNode,
-        double heading, double distance) const
+vector< vfh_star::ProjectedPose > VFHFollowing::getProjectedPoses(const vfh_star::TreeNode& curNode, double heading, double distance) const
 {
     //super omnidirectional robot
     base::Vector3d p(0, distance, 0);
-    base::Pose ret;
-    ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
-    ret.position = curNode.getPose().position + ret.orientation * p;
+    base::Pose pose;
+    pose.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
+    pose.position = curNode.getPose().position + pose.orientation * p;
 
     Eigen::Vector3d intersection_point;
-    if (segmentIntersection(curNode.getPose().position, ret.position, horizon_boundaries[0], horizon_boundaries[1], intersection_point))
+    if (segmentIntersection(curNode.getPose().position, pose.position, horizon_boundaries[0], horizon_boundaries[1], intersection_point))
     {
 	intersection_point.z() = curNode.getPose().position.z();
-        ret.position = intersection_point;
+        pose.position = intersection_point;
     }
 
-    return std::make_pair(ret, true);
+    vfh_star::ProjectedPose pr;
+    pr.driveMode = 0;
+    pr.angleTurned = 0;
+    pr.nextPoseExists = true;
+    pr.pose = pose;
+    vector< vfh_star::ProjectedPose > ret;
+
+    ret.push_back(pr);
+    
+    return ret;
 }
 
 double VFHFollowing::getHeuristic(const TreeNode &node) const
@@ -630,10 +638,10 @@ double VFHFollowing::getHeuristic(const TreeNode &node) const
     return fabs(d) / cost_conf.speedProfile[0];
 }
 
-double VFHFollowing::getCostForNode(const base::Pose& pose, double direction, const TreeNode& parentNode) const
+double VFHFollowing::getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const
 {
     double cost = 0;
-    double distance = (pose.position - parentNode.getPose().position).norm();
+    double distance = (projection.pose.position - parentNode.getPose().position).norm();
 
     // Compute rate of turn
     double angle_diff = base::Angle::normalizeRad(direction - parentNode.getDirection());

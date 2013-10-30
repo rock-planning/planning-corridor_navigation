@@ -103,9 +103,6 @@ namespace corridor_navigation
         std::pair<double, bool> algebraicDistanceToGoal(const base::Position& pos) const;
 
         //! Method required by vfh_star::TreeSearch
-        double getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const;
-
-        //! Method required by vfh_star::TreeSearch
         bool isTerminalNode(const vfh_star::TreeNode& node) const;
 
         //! Method required by vfh_star::TreeSearch
@@ -114,9 +111,8 @@ namespace corridor_navigation
         //! Method required by vfh_star::TreeSearch
         AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const;
 
-        //! Method required by vfh_star::TreeSearch
-        std::pair<base::Pose, bool> getProjectedPose(const vfh_star::TreeNode& current_node,
-                double heading, double distance) const;
+        virtual double getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const;
+        virtual std::vector< vfh_star::ProjectedPose > getProjectedPoses(const vfh_star::TreeNode& curNode, double heading, double distance) const;
 
         //! Method required by vfh_star::TreeSearch
         bool updateCost(vfh_star::TreeNode& node, bool is_terminal) const;
