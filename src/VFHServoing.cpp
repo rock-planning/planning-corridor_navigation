@@ -1,13 +1,23 @@
 #include "VFHServoing.hpp"
 #include <vfh_star/VFHStar.h>
 #include <base/angle.h>
+#include <assert.h>
+
 
 using namespace corridor_navigation;
 using namespace vfh_star;
 using namespace Eigen;
 
-VFHServoing::VFHServoing(): vfh()
+enum VFSDriveMode
 {
+    FORWARD = 0,
+    BACKWARD = 1,
+};
+
+VFHServoing::VFHServoing(): vfh(), allowBackwardsDriving(true)
+{
+    if(allowBackwardsDriving)
+        maxDriveModes = 2;
 }
 
 void VFHServoing::setNewTraversabilityGrid(const envire::Grid< Traversability >* tr)
@@ -70,10 +80,8 @@ bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
 
 std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
 {
-    VFHDebugData dd;
     std::vector< std::pair< double, double > > ret;
-    ret = vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth, &dd);
-    debugData.steps.push_back(dd);
+    ret = vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth);
     std::vector< std::pair< double, double > > frontIntervals;
 
     if(curNode.isRoot() && ret.empty())
@@ -159,37 +167,51 @@ std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirection
 bool VFHServoing::isTerminalNode(const vfh_star::TreeNode& node) const
 {
     //test if unknown terrain is near
-    double securityRadius = search_conf.robotWidth + search_conf.obstacleSafetyDistance; 
+//     double securityRadius = search_conf.robotWidth + search_conf.obstacleSafetyDistance; 
     
     double d = algebraicDistanceToGoalLine(node.getPose().position);
     
     return d<=0;
 }
 
-
-std::pair<base::Pose, bool> VFHServoing::getProjectedPose(const vfh_star::TreeNode& curNode, double heading, double distance) const
+std::vector< ProjectedPose > VFHServoing::getProjectedPoses(const vfh_star::TreeNode& curNode, double moveDirection, double distance) const
 {
+    std::vector< ProjectedPose > ret;
+    
     //super omnidirectional robot
     base::Vector3d p(0, distance, 0);
     
-    base::Pose ret;
+    base::Pose pose;
+
+    double curHeading = curNode.getYaw();
+
+    // Compute rate of turn for front to wanted heading
+    double angleDiffForward = angleDiff(moveDirection , curHeading);
+    // Compute rate of turn for back to wanted heading
+    double angleDiffBackward = angleDiff(moveDirection - M_PI, curHeading);
     
-    // Compute rate of turn
-    double angle_diff = angleDiff(heading ,curNode.getPose().getYaw());
+
+    //forward case
+    ProjectedPose fwProj;
+    fwProj.driveMode = FORWARD;
+    fwProj.pose.orientation = Eigen::AngleAxisd(moveDirection, base::Vector3d::UnitZ());
+    fwProj.pose.position = curNode.getPose().position + fwProj.pose.orientation * p;
+    fwProj.angleTurned = angleDiffForward;
+    fwProj.nextPoseExists = true;
+    ret.push_back(fwProj);
     
-    //compute inveser heading if driving backwards
-    if(angle_diff > M_PI - cost_conf.pointTurnThreshold)
+    if(allowBackwardsDriving)
     {
-	ret.orientation = Eigen::AngleAxisd(M_PI - heading, base::Vector3d::UnitZ());
-	ret.position = curNode.getPose().position - ret.orientation * p;
-    }
-    else 
-    {
-	ret.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
-	ret.position = curNode.getPose().position + ret.orientation * p;
+        ProjectedPose bwProj;
+        bwProj.driveMode = BACKWARD;
+        bwProj.pose.orientation = Eigen::AngleAxisd(moveDirection - M_PI, base::Vector3d::UnitZ());
+        bwProj.pose.position = curNode.getPose().position - bwProj.pose.orientation * p;
+        bwProj.angleTurned = angleDiffBackward;
+        bwProj.nextPoseExists = true;
+        ret.push_back(bwProj);
     }
     
-    return std::make_pair(ret, true);
+    return ret;
 }
 
 double VFHServoing::getHeuristic(const vfh_star::TreeNode& node) const
@@ -286,12 +308,15 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     return TRAJECTORY_OK;
 }
 
-double VFHServoing::getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const
+double VFHServoing::getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const
 {
+    //cost in time
     double cost = 0;
     double distance = search_conf.stepDistance;
     Vector3d intersectionPoint;
 	
+    const base::Pose &p(projection.pose);
+    
     if(lineIntersection(parentNode.getPose().position, p.position, targetLinePoint, targetLinePoint + targetLine, intersectionPoint))
     {
 	intersectionPoint.z() = parentNode.getPose().position.z();
@@ -308,6 +333,7 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     }
     
     double current_speed = 0;
+    double speedPenaltyForTerrain = 0;
     const double outer_radius = 0.3;
     const double inner_radius = search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance;
     std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, inner_radius, outer_radius);
@@ -319,12 +345,12 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
 	//TODO this is perhaps bad, as it makes the robot stop inside a obstacle
 	return std::numeric_limits<double>::infinity();
 
-    const double innerCnt = innerStats.getTerrainCount();
-/*    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
+/*    const double innerCnt = innerStats.getTerrainCount();
+    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
       innerStats.getUnknownObstacleCount() / innerCnt * cost_conf.shadowSpeedPenalty;*/
 
-    const double outerCnt = outerStats.getTerrainCount();
-/*    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
+/*    const double outerCnt = outerStats.getTerrainCount();
+    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
 				outerStats.getUnknownCount() / outerCnt * cost_conf.unknownSpeedPenalty +
 				outerStats.getUnknownObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty;*/
     double innerSpeedPenalty = 0;
@@ -339,60 +365,35 @@ double VFHServoing::getCostForNode(const base::Pose& p, double direction, const 
     
 //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
 				
-    current_speed -= innerSpeedPenalty + outerSpeedPenalty;
+    speedPenaltyForTerrain = innerSpeedPenalty + outerSpeedPenalty;
    
-    double curHeading = p.getYaw();
-    double parentHeading = parentNode.getPose().getYaw();
-    
-    // Compute rate of turn
-    double angle_diff = angleDiff(curHeading, parentHeading);
-    
-    bool driveBackward = angleDiff(direction ,curHeading) > M_PI - cost_conf.pointTurnThreshold;
- 
-    //do not allow to drive backwards into unknown terrain
-    if(driveBackward && innerStats.getUnknownCount() > 3)
-	return std::numeric_limits<double>::infinity();
-    
-    //make backwards driving cheap
-    if(driveBackward)
-    {
-	angle_diff = M_PI - angle_diff;
-    }
-    
-//     double rate_of_turn = angle_diff / distance;
-
-//     std::cout << "Speed in m/s " << cost_conf.speedProfile[0] << " turning speed reduction in m/(rad*sec) " << cost_conf.speedProfile[1] << std::endl;
-    
+        
     // Check if we must point turn
-    if (distance == 0 || (cost_conf.pointTurnThreshold > 0 && angle_diff > cost_conf.pointTurnThreshold))
+    if (cost_conf.pointTurnThreshold > 0 && projection.angleTurned > cost_conf.pointTurnThreshold)
     {
-// 	std::cout << "Point turn " << angle_diff << " threshold " << cost_conf.pointTurnThreshold << std::endl;
-        current_speed += cost_conf.speedAfterPointTurn;
-        cost += angle_diff / cost_conf.pointTurnSpeed;
-// 	std::cout << "Speeed  after point turn in m/s " << cost_conf.speedAfterPointTurn << std::endl;
+        current_speed = cost_conf.speedAfterPointTurn;
+        //add time needed to turn
+        cost += projection.angleTurned / cost_conf.pointTurnSpeed;
     }
     else
     {
-        current_speed += cost_conf.speedProfile[0] - angle_diff * cost_conf.speedProfile[1];
-// 	std::cout << "No point turn speed : " << desired_speed << " base speed:" << cost_conf.speedProfile[0] << " angle diff " << angle_diff << " turn malus " << angle_diff * cost_conf.speedProfile[1];
+        //calculate speed reducttion for driving curves
+        current_speed = cost_conf.speedProfile[0] - projection.angleTurned * cost_conf.speedProfile[1];
     }
 
-    if(current_speed < 0) {
+    current_speed -=speedPenaltyForTerrain;
+    
+    if(current_speed < cost_conf.minimalSpeed) {
 	std::cout << "Error speed is negative " << current_speed << std::endl;
 	current_speed = cost_conf.minimalSpeed;
     }
-//     std::cout << "resulting speed in m/s " << desired_speed << std::endl;
-
+    
     //make direction changes expensive
-    if(!parentNode.isRoot())
+    if(!parentNode.isRoot() && (parentNode.getDriveMode() != projection.driveMode))
     {
-	bool parentWasBackward =  angleDiff(parentNode.getDirection(), parentHeading) > M_PI - cost_conf.pointTurnThreshold;
-	if(parentWasBackward != driveBackward)
-	{
-	    cost += 0.05;
-	    current_speed = cost_conf.minimalSpeed;
-	}
+        cost += 0.05;
     }
+
 
     return cost + distance / current_speed;
 } 

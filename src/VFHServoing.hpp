@@ -68,7 +68,6 @@ namespace corridor_navigation
 	
 	virtual double getHeuristic(const vfh_star::TreeNode& node) const;
 	
-	virtual double getCostForNode(const base::Pose& p, double direction, const vfh_star::TreeNode& parentNode) const;
 	
 	virtual bool validateNode(const vfh_star::TreeNode& node) const;
 	
@@ -76,9 +75,14 @@ namespace corridor_navigation
 	
         vfh_star::VFH vfh;
         mutable VFHStarDebugData debugData;
+        
+        bool allowBackwardsDriving;
+        
         AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const;
-        std::pair<base::Pose, bool> getProjectedPose(
-                const vfh_star::TreeNode& curNode, double heading, double distance) const;
+        
+        virtual std::vector< vfh_star::ProjectedPose > getProjectedPoses(const vfh_star::TreeNode& curNode, double heading, double distance) const;
+    
+        virtual double getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const;
     };
 }
 
