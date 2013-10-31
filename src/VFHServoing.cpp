@@ -14,10 +14,25 @@ enum VFSDriveMode
     BACKWARD = 1,
 };
 
-VFHServoing::VFHServoing(): vfh(), allowBackwardsDriving(true)
+VFHServoing::VFHServoing(): vfh(), allowBackwardsDriving(false)
 {
+}
+
+void VFHServoing::setAllowBackwardDriving(bool allowed)
+{
+    if(allowed == allowBackwardsDriving)
+        return;
+
+    allowBackwardsDriving = allowed;
+    
     if(allowBackwardsDriving)
-        maxDriveModes = 2;
+    {
+        setMaxDriveModes(2);
+    }
+    else
+    {
+        setMaxDriveModes(1);
+    }
 }
 
 void VFHServoing::setNewTraversabilityGrid(const envire::Grid< Traversability >* tr)

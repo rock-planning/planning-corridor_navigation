@@ -32,6 +32,8 @@ namespace corridor_navigation
 	
 	void setCostConf(const VFHServoingConf &conf);
 
+        void setAllowBackwardDriving(bool allowed);
+        
         /**
          * Computes a path from the start pose to a 
          * line that is 'horizon' meters away from
