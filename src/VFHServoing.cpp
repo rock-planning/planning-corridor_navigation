@@ -342,7 +342,6 @@ double VFHServoing::getCostForNode(const vfh_star::ProjectedPose& projection, do
 // 	std::cout << "dist to goal " << distToGoal << std::endl;
 	if(distToGoal < distance)
 	{
-	    std::cout << "dist to goal " << distToGoal << std::endl;
 	    distance = distToGoal;
 	}
     }
