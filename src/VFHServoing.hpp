@@ -64,7 +64,7 @@ namespace corridor_navigation
          * 
          * Returns wether the planning was successfull.
          * */
-	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory);
+	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory, double minTrajectoryLenght = 0);
     private:
 	VFHServoingConf cost_conf;
 	

@@ -278,7 +278,7 @@ std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start,
     return ret;
 }
 
-VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory)
+VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory, double minTrajectoryLenght)
 {    
     TreeNode const* curNode = computePath(start, mainHeading, horizon, body2Trajectory);
     if (!curNode)
@@ -298,6 +298,8 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
 	nodeTmp = nodeTmp->getParent();
     }    
 
+    int minSteps = ceil(minTrajectoryLenght / search_conf.stepDistance);
+    
     //look for anything that is not traversable on
     //the computed route, e.g unknow or shadow
     int i;
@@ -313,7 +315,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     //cut off the unknown part
     nodes.resize(i);
     
-    if(i == 0)
+    if(i <= minSteps)
     {
 	result = std::vector<base::Trajectory>();
 	return TRAJECTORY_THROUGH_UNKNOWN;
