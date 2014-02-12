@@ -109,11 +109,11 @@ namespace corridor_navigation
         double getHeuristic(const vfh_star::TreeNode &node) const;
 
         //! Method required by vfh_star::TreeSearch
-        AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const;
-
-        virtual double getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const;
-        virtual std::vector< vfh_star::ProjectedPose > getProjectedPoses(const vfh_star::TreeNode& curNode, double heading, double distance) const;
-
+        virtual AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode) const;
+        
+        virtual double getCostForNode(const vfh_star::ProjectedPose& projection, const base::Angle& direction, const vfh_star::TreeNode& parentNode) const;
+        virtual std::vector< vfh_star::ProjectedPose > getProjectedPoses(const vfh_star::TreeNode& curNode, const base::Angle& heading, double distance) const;
+    
         //! Method required by vfh_star::TreeSearch
         bool updateCost(vfh_star::TreeNode& node, bool is_terminal) const;
         //! Method required by vfh_star::TreeSearch

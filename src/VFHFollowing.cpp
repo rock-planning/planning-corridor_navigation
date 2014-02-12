@@ -410,7 +410,7 @@ bool VFHFollowing::isTerminalNode(const TreeNode& node) const
 //     return make_pair(0, 0);
 // }
 
-vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const vfh_star::TreeNode& current_node, double safetyDistance, double robotWidth) const
+vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(const vfh_star::TreeNode& current_node) const
 {
     base::Pose current_pose = current_node.getPose();
 
@@ -420,28 +420,28 @@ vfh_star::TreeSearch::AngleIntervals VFHFollowing::getNextPossibleDirections(con
     double threshold = cost_conf.pointTurnThreshold;
     if (threshold == 0)
     {
-        possible_directions.push_back(std::make_pair(0, 2 * M_PI));
+        possible_directions.push_back(base::AngleSegment(base::Angle::fromDeg(0), 2*M_PI));
         return possible_directions;
     }
 
     double distance = search_conf.stepDistance;
     double angular_threshold = threshold * distance;
 
-    pair<double, double> normal = std::make_pair(current_heading - angular_threshold, current_heading + angular_threshold);
+    base::AngleSegment normal = base::AngleSegment(base::Angle::fromRad(current_heading - angular_threshold), current_heading + angular_threshold);
 
     int reference_index = node_info[current_node.getIndex()].reference_point;
     base::Vector3d local_tangent = median_tangents[reference_index];
     double local_heading = vector_angles(base::Vector3d::UnitY(), local_tangent);
 
-    pair<double, double> point_turn = make_pair(local_heading - cost_conf.pointTurnAperture, local_heading + cost_conf.pointTurnAperture);
+    base::AngleSegment point_turn = base::AngleSegment(base::Angle::fromRad(local_heading - cost_conf.pointTurnAperture), local_heading + cost_conf.pointTurnAperture);
 
     double b0_heading = vector_angles(base::Vector3d::UnitY(), horizon_boundaries[0] - current_node.getPose().position);
     double b0b1 = vector_angles(horizon_boundaries[0] - current_node.getPose().position, horizon_boundaries[1] - current_node.getPose().position);
-    pair<double, double> horizon;
+    base::AngleSegment horizon;
     if (b0b1 > 0)
-        horizon = make_pair(b0_heading, b0_heading + b0b1);
+        horizon = base::AngleSegment(base::Angle::fromRad(b0_heading), b0_heading + b0b1);
     else
-        horizon = make_pair(b0_heading + b0b1, b0_heading);
+        horizon = base::AngleSegment(base::Angle::fromRad(b0_heading + b0b1), b0_heading);
 
     possible_directions.push_back(normal);
     possible_directions.push_back(point_turn);
@@ -507,7 +507,7 @@ bool VFHFollowing::updateCost(TreeNode& node, bool is_terminal) const
     {
         // Add some cost for the final direction (should be aligned with the
         // horizon)
-        double angle_to_horizon = base::Angle::normalizeRad(node.getDirection() - desired_final_heading);
+        double angle_to_horizon = (node.getDirection() - base::Angle::fromRad(desired_final_heading)).getRad();
         cost += fabs(angle_to_horizon) * cost_conf.finalDirectionCost;
     }
 
@@ -600,12 +600,12 @@ bool VFHFollowing::validateNode(TreeNode const& node) const
     return (parent_is_outside || !child_is_outside);
 }
 
-vector< vfh_star::ProjectedPose > VFHFollowing::getProjectedPoses(const vfh_star::TreeNode& curNode, double heading, double distance) const
+vector< vfh_star::ProjectedPose > VFHFollowing::getProjectedPoses(const vfh_star::TreeNode& curNode, const base::Angle& heading, double distance) const
 {
     //super omnidirectional robot
     base::Vector3d p(0, distance, 0);
     base::Pose pose;
-    pose.orientation = Eigen::AngleAxisd(heading, base::Vector3d::UnitZ());
+    pose.orientation = Eigen::AngleAxisd(heading.getRad(), base::Vector3d::UnitZ());
     pose.position = curNode.getPose().position + pose.orientation * p;
 
     Eigen::Vector3d intersection_point;
@@ -638,13 +638,13 @@ double VFHFollowing::getHeuristic(const TreeNode &node) const
     return fabs(d) / cost_conf.speedProfile[0];
 }
 
-double VFHFollowing::getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const
+double VFHFollowing::getCostForNode(const vfh_star::ProjectedPose& projection, const base::Angle& direction, const vfh_star::TreeNode& parentNode) const
 {
     double cost = 0;
     double distance = (projection.pose.position - parentNode.getPose().position).norm();
 
     // Compute rate of turn
-    double angle_diff = base::Angle::normalizeRad(direction - parentNode.getDirection());
+    double angle_diff = (direction - parentNode.getDirection()).getRad();
     double desired_speed;
     double rate_of_turn = angle_diff / distance;
 

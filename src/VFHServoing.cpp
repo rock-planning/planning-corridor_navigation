@@ -35,7 +35,7 @@ void VFHServoing::setAllowBackwardDriving(bool allowed)
     }
 }
 
-void VFHServoing::setNewTraversabilityGrid(const envire::Grid< Traversability >* tr)
+void VFHServoing::setNewTraversabilityGrid(const envire::TraversabilityGrid* tr)
 {
     vfh.setNewTraversabilityGrid(tr);
 }
@@ -76,10 +76,11 @@ void VFHServoing::clearDebugData()
 
 void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
 {
+    //TODO add oversampling for front
     cost_conf = conf;
-    search_conf.angularSamplingMin = asin((search_conf.stepDistance / 5.0) / search_conf.stepDistance);
+//     search_conf.angularSamplingMin = asin((search_conf.stepDistance / 5.0) / search_conf.stepDistance);
     vfh.setSenseRadius(conf.obstacleSenseRadius);
-    std::cout << "setting min sampling to " << search_conf.angularSamplingMin / M_PI * 180 << std::endl;
+//     std::cout << "setting min sampling to " << search_conf.angularSamplingMin / M_PI * 180 << std::endl;
 }
 
 bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
@@ -93,90 +94,10 @@ bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
     return true;
 }
 
-std::vector< std::pair< double, double > > VFHServoing::getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
+
+TreeSearch::AngleIntervals VFHServoing::getNextPossibleDirections(const TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const
 {
-    std::vector< std::pair< double, double > > ret;
-    ret = vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth);
-    std::vector< std::pair< double, double > > frontIntervals;
-
-    if(curNode.isRoot() && ret.empty())
-    {
-	ret.push_back(std::make_pair(0, 2*M_PI));
-    }
-    
-    //oversampling interval
-    double intervalHalf = cost_conf.oversamplingWidth / 2.0;
-    
-    double curDir = curNode.getDirection();
-    if(curDir < 0)
-	curDir += 2*M_PI;
-    
-    if(curDir > 2*M_PI)
-	curDir -= 2*M_PI;
-    
-    double start = curDir - intervalHalf;
-    if(start < 0)
-	start += 2 * M_PI;
-    
-    double end = curDir + intervalHalf;
-    if(end > 2 * M_PI)
-	end -= 2 * M_PI;
-    
-    for(std::vector< std::pair< double, double > >::iterator it = ret.begin(); it != ret.end(); it++)
-    {
-	bool startInInterval = false;
-	bool endInInterval = false;
-	
-	//check for wrapping case
-	if(it->first > it->second) 
-	{
-// 	    std::cout << "Wrapping case " << it->first << " " << it->second << " dir " << curNode.getDirection() << " start " << start << " end " << end << std::endl;
-	    
-	    if((it->first < start && start < 2 * M_PI) || (0 < start && start < it->second))
-	    {
-		startInInterval = true;
-	    }
-
-	    if((it->first < end && end < 2 * M_PI) || (0 < end && end < it->second))
-	    {
-		endInInterval = true;
-	    }    
-	} else {
-	    //test if start is in interval
-	    if(it->first < start && start < it->second)
-	    {
-		startInInterval = true;
-	    }
-	    
-	    //test if end is in interval
-	    if(it->first < end && end < it->second)
-	    {
-		endInInterval = true;
-	    }
-	}
-	
-	if(startInInterval && endInInterval)
-	{
-	    ret.push_back(std::make_pair<double, double>(start, end));
-	    return ret;
-	}
-	
-	//start but no end
-	if(startInInterval)
-	{
-	    frontIntervals.push_back(std::make_pair<double, double>(start, it->second));
-	}
-	
-	//only end in interval
-	if(endInInterval)
-	{
-	    frontIntervals.push_back(std::make_pair<double, double>(it->first, end));
-	}
-    }
-    
-    ret.insert(ret.end(), frontIntervals.begin(), frontIntervals.end());
-    
-    return ret;
+    return vfh.getNextPossibleDirections(curNode.getPose(), obstacleSafetyDist, robotWidth);
 }
 
 bool VFHServoing::isTerminalNode(const vfh_star::TreeNode& node) const
@@ -189,27 +110,26 @@ bool VFHServoing::isTerminalNode(const vfh_star::TreeNode& node) const
     return d<=0;
 }
 
-std::vector< ProjectedPose > VFHServoing::getProjectedPoses(const vfh_star::TreeNode& curNode, double moveDirection, double distance) const
+std::vector< ProjectedPose > VFHServoing::getProjectedPoses(const vfh_star::TreeNode& curNode, const base::Angle& moveDirection, double distance) const
 {
     std::vector< ProjectedPose > ret;
     
     //super omnidirectional robot
-    base::Vector3d p(0, distance, 0);
+    base::Vector3d p(distance, 0, 0);
     
     base::Pose pose;
 
-    double curHeading = curNode.getYaw();
+    base::Angle curHeading = curNode.getYaw();
 
     // Compute rate of turn for front to wanted heading
-    double angleDiffForward = angleDiff(moveDirection , curHeading);
+    double angleDiffForward = fabs((moveDirection - curHeading).getRad());
     // Compute rate of turn for back to wanted heading
-    double angleDiffBackward = angleDiff(moveDirection - M_PI, curHeading);
-    
+    double angleDiffBackward = fabs((moveDirection.flipped() - curHeading).getRad());
 
     //forward case
     ProjectedPose fwProj;
     fwProj.driveMode = FORWARD;
-    fwProj.pose.orientation = Eigen::AngleAxisd(moveDirection, base::Vector3d::UnitZ());
+    fwProj.pose.orientation = Eigen::AngleAxisd(moveDirection.getRad(), base::Vector3d::UnitZ());
     fwProj.pose.position = curNode.getPose().position + fwProj.pose.orientation * p;
     fwProj.angleTurned = angleDiffForward;
     fwProj.nextPoseExists = true;
@@ -219,7 +139,7 @@ std::vector< ProjectedPose > VFHServoing::getProjectedPoses(const vfh_star::Tree
     {
         ProjectedPose bwProj;
         bwProj.driveMode = BACKWARD;
-        bwProj.pose.orientation = Eigen::AngleAxisd(moveDirection - M_PI, base::Vector3d::UnitZ());
+        bwProj.pose.orientation = Eigen::AngleAxisd(moveDirection.flipped().getRad(), base::Vector3d::UnitZ());
         bwProj.pose.position = curNode.getPose().position - bwProj.pose.orientation * p;
         bwProj.angleTurned = angleDiffBackward;
         bwProj.nextPoseExists = true;
@@ -235,7 +155,7 @@ double VFHServoing::getHeuristic(const vfh_star::TreeNode& node) const
     if (d_to_goal < 0)
         return 0;
 
-    return d_to_goal / cost_conf.speedProfile[0];
+    return d_to_goal / cost_conf.baseSpeed;
 }
 
 bool lineIntersection(const Vector3d &p1, const Vector3d &p2, const Vector3d &p3, const Vector3d &p4, Vector3d &intersectionPoint) {
@@ -259,17 +179,17 @@ bool lineIntersection(const Vector3d &p1, const Vector3d &p2, const Vector3d &p3
     return true;
 }
 
-std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start, double mainHeading, double horizon)
+std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start, base::Angle &mainHeading, double horizon)
 {
     std::vector< base::Waypoint > wholeTrajectory = VFHStar::getWaypoints(start, mainHeading, horizon);
     std::vector< base::Waypoint > ret;
     
     for(std::vector< base::Waypoint >::const_iterator it = wholeTrajectory.begin(); it != wholeTrajectory.end(); it++)
     {
-	base::Pose pos;
-	pos.position = it->position;
-	pos.orientation = AngleAxisd(it->heading, Vector3d::UnitZ());
-	if(vfh.getWorstTerrainInRadius(pos, search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) == TRAVERSABLE)
+        base::Pose2D pose(Vector2d(it->position.x(), it->position.y()), it->heading);
+        
+        const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, cost_conf.robotHeight, cost_conf.robotWidth);
+        if(klass.isTraversable())
 	    ret.push_back(*it);
 	else
 	    break;
@@ -278,7 +198,7 @@ std::vector< base::Waypoint > VFHServoing::getWaypoints(const base::Pose& start,
     return ret;
 }
 
-VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, double mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory, double minTrajectoryLenght)
+VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, const base::Angle &mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory, double minTrajectoryLenght)
 {    
     TreeNode const* curNode = computePath(start, mainHeading, horizon, body2Trajectory);
     if (!curNode)
@@ -305,11 +225,14 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     int i;
     for (i = 0; i < size; ++i)
     {
-	if(vfh.getWorstTerrainInRadius(nodes[i]->getPose(), search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) != TRAVERSABLE)
-	{
-	    std::cout << "Cutting trajectory at pos " << i << " from " << size << std::endl;
-	    break;
-	}
+        base::Pose2D pose(nodes[i]->getPose());
+        
+        const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, cost_conf.robotHeight, cost_conf.robotWidth);
+        if(!klass.isTraversable())
+        {
+            std::cout << "Cutting trajectory at pos " << i << " from " << size << std::endl;
+            break;
+        }
     }
     
     //cut off the unknown part
@@ -351,39 +274,56 @@ double VFHServoing::getCostForNode(const vfh_star::ProjectedPose& projection, do
     double current_speed = 0;
     double speedPenaltyForTerrain = 0;
     const double outer_radius = 0.3;
-    const double inner_radius = search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance;
-    std::pair<TerrainStatistic, TerrainStatistic> stats = vfh.getTerrainStatisticsForRadius(p, inner_radius, outer_radius);
     
-    const TerrainStatistic &innerStats(stats.first);
-    const TerrainStatistic &outerStats(stats.second);
+    envire::TraversabilityStatistic innerStats;
+    envire::TraversabilityStatistic outerStats;
+    base::Pose2D p2d(p);
+    vfh.getTraversabilityGrid()->computeStatistic(p2d, cost_conf.robotHeight + search_conf.obstacleSafetyDistance, cost_conf.robotWidth + search_conf.obstacleSafetyDistance, outer_radius, innerStats, outerStats);
+        
+    double accumulatedDrivability = 0;
+    for(uint8_t i = 0; i < innerStats.getHighestTraversabilityClass(); i++)
+    {
+        size_t count = innerStats.getClassCount(i);
+        if(count)
+        {
+            const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
+
+            if(!klass.isTraversable())
+            {
+                //TODO this is perhaps bad, as it makes the robot stop inside a obstacle
+                return std::numeric_limits<double>::infinity();
+            }
+            
+            accumulatedDrivability += klass.getDrivability() * count / innerStats.getTotalCount(); 
+        }
+    }
     
-    if(innerStats.getObstacleCount() > 0)
-	//TODO this is perhaps bad, as it makes the robot stop inside a obstacle
-	return std::numeric_limits<double>::infinity();
+    double accumulatedOuterDrivability = 1.0;
+    
+    for(uint8_t i = 0; i < outerStats.getHighestTraversabilityClass(); i++)
+    {
+        size_t count;
+        double minDistToRobot;
+        outerStats.getStatisticForClass(i, minDistToRobot, count);
+        
+        if(count)
+        {
+            const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
+            double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
+            assert(impactFactor < 1.001 && impactFactor >= 0);
 
-/*    const double innerCnt = innerStats.getTerrainCount();
-    double innerSpeedPenalty = 	innerStats.getUnknownCount() / innerCnt * cost_conf.unknownSpeedPenalty + 
-      innerStats.getUnknownObstacleCount() / innerCnt * cost_conf.shadowSpeedPenalty;*/
-
-/*    const double outerCnt = outerStats.getTerrainCount();
-    double outerSpeedPenalty = 	outerStats.getObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty + 
-				outerStats.getUnknownCount() / outerCnt * cost_conf.unknownSpeedPenalty +
-				outerStats.getUnknownObstacleCount() / outerCnt * cost_conf.shadowSpeedPenalty;*/
-    double innerSpeedPenalty = 0;
-    if(innerStats.getUnknownObstacleCount())
-	innerSpeedPenalty += cost_conf.shadowSpeedPenalty;
-
-    double outerSpeedPenalty = 0;
-    if(outerStats.getObstacleCount())
-	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outer_radius - (outerStats.getMinDistanceToTerrain(OBSTACLE) - inner_radius)) / outer_radius;
-    if(outerStats.getUnknownObstacleCount())
-	outerSpeedPenalty += cost_conf.shadowSpeedPenalty * (outer_radius - (outerStats.getMinDistanceToTerrain(UNKNOWN_OBSTACLE) - inner_radius)) / outer_radius;
+            accumulatedOuterDrivability -= (1 - klass.getDrivability()) * count / innerStats.getTotalCount() * impactFactor;
+        }
+    }
+    
+    double innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - accumulatedDrivability);
+    double outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - accumulatedOuterDrivability);
     
 //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
 				
     speedPenaltyForTerrain = innerSpeedPenalty + outerSpeedPenalty;
    
-        
+
     // Check if we must point turn
     if (cost_conf.pointTurnThreshold > 0 && projection.angleTurned > cost_conf.pointTurnThreshold)
     {
@@ -394,10 +334,11 @@ double VFHServoing::getCostForNode(const vfh_star::ProjectedPose& projection, do
     else
     {
         //calculate speed reducttion for driving curves
-        current_speed = cost_conf.speedProfile[0] - projection.angleTurned * cost_conf.speedProfile[1];
+        current_speed = cost_conf.baseSpeed - projection.angleTurned * cost_conf.speedReductionForTurning;
     }
 
-    current_speed -=speedPenaltyForTerrain;
+    
+    current_speed -= speedPenaltyForTerrain;
     
     if(current_speed < cost_conf.minimalSpeed) {
 	std::cout << "Error speed is negative " << current_speed << std::endl;
@@ -407,7 +348,7 @@ double VFHServoing::getCostForNode(const vfh_star::ProjectedPose& projection, do
     //make direction changes expensive
     if(!parentNode.isRoot() && (parentNode.getDriveMode() != projection.driveMode))
     {
-        cost += 0.05;
+        cost += cost_conf.driveModeChangeCost;
     }
 
 

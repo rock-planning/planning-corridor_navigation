@@ -4,12 +4,16 @@
 namespace corridor_navigation {
     struct VFHServoingConf
     {
-	/** This factor gives us the linear speed w.r.t. the rate of turn
-         * (in rad/m). Speed is given by
-         *   
-         *   speed = speedProfile[0] - rate_of_turn * speedProfile[1]
-         */
-        double speedProfile[2];
+        /**
+         * Normal speed of the robot
+         * */
+        double baseSpeed;
+        
+        /**
+         * Factor for reduction the speed in respect ot the angle turned
+         * */
+        double speedReductionForTurning;
+        
         /** This is the threshold rate of turn (in rad/m) above which the robot
          * will use point turning instead of going forward
          *
@@ -22,18 +26,22 @@ namespace corridor_navigation {
         /** Speed after a point turn
          */
         double speedAfterPointTurn;
+        
+        /**
+         *  Sense radius used in VFH algorithm
+         * */
+        double obstacleSenseRadius;
 
-	/**
-	 * Width of the area in front of the robot, 
-	 * were more directions are sampled 
-	 * */
-	double oversamplingWidth;
-	
-	/**
-	 * Radius in which obstacles are sensed
-	 * per step.
-	 * */
-	double obstacleSenseRadius;
+        /**
+         * Width of the robot
+         * */
+        double robotWidth;
+        
+        /**
+         * Height of the robot.
+         * Note, this is a 2D model, so height is NOT in Z direction.
+         * */
+        double robotHeight;
 	
 	/** Some systems are really bad at turning. For those, it is best to
          * force going straight as much as possible.
@@ -43,18 +51,31 @@ namespace corridor_navigation {
         double baseTurnCost;
 	
 	/**
-	 * Penaltys for driving over unknown or
-	 * terrain inside a sensor shadow
+         * Maximumt speed penalty caused by
+         * bad terrain under the robot. 
 	 * */
-	double unknownSpeedPenalty;
-	double shadowSpeedPenalty;
+	double maxInnerSpeedPenalty;
+        
+        /**
+         * Maximum speed penalty caused by bad
+         * terrain around the robot.
+         * */
+	double maxOuterSpeedPenalty;
 	
+        /**
+         * Cost for changing the drive mode
+         * */
+        double driveModeChangeCost;
+        
 	/**
 	 * This is the minimal speed of the robot
 	 * */
 	double minimalSpeed;
 	
-	VFHServoingConf() : unknownSpeedPenalty(0.1), shadowSpeedPenalty(0.1), minimalSpeed(0.01)
+	VFHServoingConf() : baseSpeed(0), speedReductionForTurning(0), pointTurnThreshold(0), pointTurnSpeed(0), 
+                            speedAfterPointTurn(0), obstacleSenseRadius(0), robotWidth(0), robotHeight(0),
+                            baseTurnCost(0), maxInnerSpeedPenalty(0), maxOuterSpeedPenalty(0), driveModeChangeCost(0), 
+                            minimalSpeed(0)
 	{}
     };
 }
