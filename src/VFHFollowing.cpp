@@ -123,7 +123,15 @@ std::pair<base::geometry::Spline<3>, bool> VFHFollowing::getTrajectory(const bas
     bool within_range = findHorizon(current_pose.position, horizon);
 
     hasLastProjectedPosition = false;
-    return std::make_pair(TreeSearch::getTrajectory(current_pose), within_range);
+
+    const TreeNode *node = compute(current_pose);
+    std::vector<base::Trajectory> trjs = buildTrajectoriesTo(node, Eigen::Affine3d::Identity());
+    if(trjs.size())
+    {
+        return std::make_pair(trjs.begin()->spline, within_range);
+    }
+    
+    return std::make_pair(base::geometry::Spline<3>(), within_range);
 }
 
 void VFHFollowing::setCorridor(const corridors::Corridor& corridor, double desired_terminal_heading)
