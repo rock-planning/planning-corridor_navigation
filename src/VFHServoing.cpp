@@ -41,37 +41,10 @@ void VFHServoing::setNewTraversabilityGrid(const envire::TraversabilityGrid* tr)
 }
 
 
-VFHStarDebugData VFHServoing::getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory)
 {
-    VFHStarDebugData dd_out;
-    dd_out.horizonOrigin = getHorizonOrigin();
-    dd_out.horizonVector = getHorizonVector();
-    for(std::vector<base::Waypoint>::const_iterator it = trajectory.begin(); it != trajectory.end(); it++)
-    {
-	bool found = false;
-	for(std::vector<vfh_star::VFHDebugData>::const_iterator it2 = debugData.steps.begin(); it2 != debugData.steps.end(); it2++) 
-	{
-	    if(it->position == base::Vector3d(it2->pose.position))
-	    {
-		dd_out.steps.push_back(*it2);
-		found = true;
-		break;
-	    }
-	    
-	}
-	if(!found && (it + 1) != trajectory.end() )
-	{
-	    std::cerr << "BAD debug data is fishy" << std::endl;
-	    throw std::runtime_error("Could not build VFHStarDebugData");
-	}
-    }
-    return dd_out;
 }
 
-void VFHServoing::clearDebugData()
 {
-    debugData.generatedTrajectory.clear();
-    debugData.steps.clear();
 }
 
 void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)

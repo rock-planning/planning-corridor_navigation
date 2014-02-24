@@ -25,10 +25,6 @@ namespace corridor_navigation
 
         virtual ~VFHServoing() {};
 
-        VFHStarDebugData getVFHStarDebugData(const std::vector< base::Waypoint >& trajectory);
-
-	void clearDebugData();
-	
 	void setCostConf(const VFHServoingConf &conf);
 
         void setAllowBackwardDriving(bool allowed);
@@ -75,7 +71,6 @@ namespace corridor_navigation
 	virtual bool isTerminalNode(const vfh_star::TreeNode& node) const; 
 	
         vfh_star::VFH vfh;
-        mutable VFHStarDebugData debugData;
         
         bool allowBackwardsDriving;
         

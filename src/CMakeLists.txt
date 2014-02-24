@@ -1,5 +1,5 @@
 rock_library(corridor_navigation
     SOURCES VFHServoing.cpp VFHFollowing.cpp
     DEPS_PKGCONFIG vfh_star corridor_planner
-    HEADERS VFHStarDebugData.hpp VFHServoingConf.hpp VFHServoing.hpp VFHFollowingConf.hpp VFHFollowing.hpp)
+    HEADERS VFHServoingConf.hpp VFHServoing.hpp VFHFollowingConf.hpp VFHFollowing.hpp)
 
