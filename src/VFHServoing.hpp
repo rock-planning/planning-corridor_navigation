@@ -2,16 +2,18 @@
 #define CORRIDOR_NAVIGATION_VFHSERVOING_HPP
 
 #include <vfh_star/Types.h>
-#include <vfh_star/VFHStar.h>
+#include <vfh_star/HorizonPlanner.hpp>
+#include <vfh_star/VFH.h>
 #include "VFHServoingConf.hpp"
-#include "VFHStarDebugData.hpp"
 #include <envire/maps/Grid.hpp>
 #include "VFHServoingConf.hpp"
 
 namespace corridor_navigation
 {
-    class VFHServoing: public vfh_star::VFHStar
+    class VFHServoingDriveMode;
+    class VFHServoing: public vfh_star::HorizonPlanner
     {
+        friend class VFHServoingDriveMode;
     public:
 	
 	enum ServoingStatus
@@ -23,7 +25,7 @@ namespace corridor_navigation
 	
         VFHServoing();
 
-        virtual ~VFHServoing() {};
+        virtual ~VFHServoing();
 
 	void setCostConf(const VFHServoingConf &conf);
 
@@ -35,50 +37,38 @@ namespace corridor_navigation
          * the start pose and ortogonal to 
          * mainHeading.
          * 
-         * Returns a series of waypoints that lead to the horizon
-         *      or an emptry vector is no path could be found.
+         * @param start_map position and orientation of the start in map frame
+         * @param mainHeading_map target heading in map frame
+         * 
+         * The trajectory is returned in the 'result' parameter.
+         * The result is transformed into the 'trajectory' frame using 
+         * the given parameter 'world2Trajectory'.
+         * 
+         * Returns wether the planning was successfull.
          * */
-	std::vector<base::Waypoint> getWaypoints(const base::Pose& start, base::Angle& mainHeading, double horizon);
-	
+	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, const base::Angle &mainHeading, double horizon, const Eigen::Affine3d& world2Trajectory, double minTrajectoryLenght = 0);
+
         /**
          * Sets a new traversability map.
          * The map is used while computing the optimal path
          * to the horizon.
          * */
-	void setNewTraversabilityGrid(const envire::TraversabilityGrid* tr);
-	
-        /**
-         * Computes a path from the start pose to a 
-         * line that is 'horizon' meters away from
-         * the start pose and ortogonal to 
-         * mainHeading.
-         * 
-         * The trajectory is returned in the 'result' parameter.
-         * The result is transformed into the 'trajectory' frame using 
-         * the given parameter 'body2Trajectory'.
-         * 
-         * Returns wether the planning was successfull.
-         * */
-	ServoingStatus getTrajectories(std::vector< base::Trajectory > &result, const base::Pose& start, const base::Angle &mainHeading, double horizon, const Eigen::Affine3d& body2Trajectory, double minTrajectoryLenght = 0);
+        void setNewTraversabilityGrid(const envire::TraversabilityGrid *trGrid);
+        
     private:
 	VFHServoingConf cost_conf;
-	
+        vfh_star::VFH vfh;
+        bool allowBackwardsDriving;        
+        VFHServoingDriveMode *forward;
+        VFHServoingDriveMode *backward;
+
 	virtual double getHeuristic(const vfh_star::TreeNode& node) const;
-	
 	
 	virtual bool validateNode(const vfh_star::TreeNode& node) const;
 	
 	virtual bool isTerminalNode(const vfh_star::TreeNode& node) const; 
 	
-        vfh_star::VFH vfh;
-        
-        bool allowBackwardsDriving;
-        
-        AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode, double obstacleSafetyDist, double robotWidth) const;
-        
-        virtual std::vector< vfh_star::ProjectedPose > getProjectedPoses(const vfh_star::TreeNode& curNode, const base::Angle& heading, double distance) const;
-    
-        virtual double getCostForNode(const vfh_star::ProjectedPose& projection, double direction, const vfh_star::TreeNode& parentNode) const;
+        virtual AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode) const;
     };
 }
 

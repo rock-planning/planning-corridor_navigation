@@ -1,6 +1,8 @@
 #ifndef CORRIDOR_NAVIGATION_VFHSERVOING_CONF_HPP
 #define CORRIDOR_NAVIGATION_VFHSERVOING_CONF_HPP
 
+#include <vfh_star/Types.h>
+
 namespace corridor_navigation {
     struct VFHServoingConf
     {
@@ -28,11 +30,6 @@ namespace corridor_navigation {
         double speedAfterPointTurn;
         
         /**
-         *  Sense radius used in VFH algorithm
-         * */
-        double obstacleSenseRadius;
-
-        /**
          * Width of the robot
          * */
         double robotWidth;
@@ -42,6 +39,12 @@ namespace corridor_navigation {
          * Note, this is a 2D model, so height is NOT in Z direction.
          * */
         double robotHeight;
+        
+        /**
+         * Safety radius. The robots dimensions will be extended
+         * by this value to every side.
+         * */
+        double obstacleSafetyRadius;
 	
 	/** Some systems are really bad at turning. For those, it is best to
          * force going straight as much as possible.
@@ -71,9 +74,15 @@ namespace corridor_navigation {
 	 * This is the minimal speed of the robot
 	 * */
 	double minimalSpeed;
+        
+        /**
+         * Configuration for the VFH algorithm used
+         * for sampling space reduction
+         * */
+        vfh_star::VFHConf vfhConfig;
 	
 	VFHServoingConf() : baseSpeed(0), speedReductionForTurning(0), pointTurnThreshold(0), pointTurnSpeed(0), 
-                            speedAfterPointTurn(0), obstacleSenseRadius(0), robotWidth(0), robotHeight(0),
+                            speedAfterPointTurn(0), robotWidth(0), robotHeight(0),
                             baseTurnCost(0), maxInnerSpeedPenalty(0), maxOuterSpeedPenalty(0), driveModeChangeCost(0), 
                             minimalSpeed(0)
 	{}
