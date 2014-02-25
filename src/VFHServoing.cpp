@@ -283,6 +283,14 @@ double VFHServoing::getHeuristic(const vfh_star::TreeNode& node) const
 VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, const base::Angle &mainHeading, 
                                                          double horizon, const Eigen::Affine3d& world2Trajectory, double minTrajectoryLenght)
 {   
+    size_t xi, yi;
+    if(!vfh.getTraversabilityGrid()->toGrid(start.position, xi, yi, vfh.getTraversabilityGrid()->getEnvironment()->getRootNode()))
+    {
+        std::cout << "Warning, pose is not in grid" <<std::endl;
+        result = std::vector<base::Trajectory>();
+        return NO_SOLUTION;
+    }
+    
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
     if (!curNode)
     {
