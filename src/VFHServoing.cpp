@@ -77,7 +77,7 @@ public:
         vfh.getTraversabilityGrid()->computeStatistic(p2d, virtualWidth, virtualHeight, outer_radius, innerStats, outerStats);
             
         double accumulatedDrivability = 0;
-        for(uint8_t i = 0; i < innerStats.getHighestTraversabilityClass(); i++)
+        for(uint8_t i = 0; i <= innerStats.getHighestTraversabilityClass(); i++)
         {
             size_t count = innerStats.getClassCount(i);
             if(count)
@@ -96,7 +96,7 @@ public:
         
         double accumulatedOuterDrivability = 1.0;
         
-        for(uint8_t i = 0; i < outerStats.getHighestTraversabilityClass(); i++)
+        for(uint8_t i = 0; i <= outerStats.getHighestTraversabilityClass(); i++)
         {
             size_t count;
             double minDistToRobot;
