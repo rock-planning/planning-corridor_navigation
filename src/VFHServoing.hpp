@@ -61,6 +61,11 @@ namespace corridor_navigation
         bool allowBackwardsDriving;        
         VFHServoingDriveMode *forward;
         VFHServoingDriveMode *backward;
+        
+        ///Height plus obstacle safety radius
+        double virtualHeight;
+        ///widht plus obstacle safety radius
+        double virtualWidth;
 
 	virtual double getHeuristic(const vfh_star::TreeNode& node) const;
 	
