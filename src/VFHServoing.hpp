@@ -15,7 +15,8 @@ namespace corridor_navigation
     {
         friend class VFHServoingDriveMode;
     public:
-	
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 	enum ServoingStatus
 	{
 	    NO_SOLUTION,
