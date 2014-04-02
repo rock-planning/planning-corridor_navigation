@@ -303,7 +303,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     //look for anything that is not traversable on
     //the computed route, e.g unknow or shadow
     int i;
-    for (i = 0; i < size; ++i)
+    for (i = 1; i < size; ++i)
     {
 	if(vfh.getWorstTerrainInRadius(nodes[i]->getPose(), search_conf.robotWidth / 2.0 + search_conf.obstacleSafetyDistance) != TRAVERSABLE)
 	{
