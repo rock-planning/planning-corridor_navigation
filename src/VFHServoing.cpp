@@ -317,7 +317,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     //look for anything that is not traversable on
     //the computed route, e.g unknow or shadow
     int i;
-    for (i = 0; i < size; ++i)
+    for (i = 1; i < size; ++i)
     {
         //not this pose is in map coordinates, which is just right in this case
         base::Pose2D pose(nodes[i]->getPose());
