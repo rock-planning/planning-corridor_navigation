@@ -35,10 +35,9 @@ namespace corridor_navigation {
         double robotWidth;
         
         /**
-         * Height of the robot.
-         * Note, this is a 2D model, so height is NOT in Z direction.
+         * Lenght of the robot.
          * */
-        double robotHeight;
+        double robotLength;
         
         /**
          * Safety radius. The robots dimensions will be extended
@@ -82,7 +81,7 @@ namespace corridor_navigation {
         vfh_star::VFHConf vfhConfig;
 	
 	VFHServoingConf() : baseSpeed(0), speedReductionForTurning(0), pointTurnThreshold(0), pointTurnSpeed(0), 
-                            speedAfterPointTurn(0), robotWidth(0), robotHeight(0),
+                            speedAfterPointTurn(0), robotWidth(0), robotLength(0),
                             baseTurnCost(0), maxInnerSpeedPenalty(0), maxOuterSpeedPenalty(0), driveModeChangeCost(0), 
                             minimalSpeed(0)
 	{}

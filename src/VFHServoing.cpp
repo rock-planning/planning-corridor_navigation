@@ -71,10 +71,10 @@ public:
         const VFHServoingConf &cost_conf(servoing.cost_conf);
         const vfh_star::VFH &vfh(servoing.vfh);
         
-        const double &virtualWidth(servoing.virtualWidth);
-        const double &virtualHeight(servoing.virtualHeight);
+        const double &virtualSizeX(servoing.virtualSizeX);
+        const double &virtualSizeY(servoing.virtualSizeY);
         
-        vfh.getTraversabilityGrid()->computeStatistic(p2d, virtualWidth, virtualHeight, outer_radius, innerStats, outerStats);
+        vfh.getTraversabilityGrid()->computeStatistic(p2d, virtualSizeX, virtualSizeY, outer_radius, innerStats, outerStats);
             
         double accumulatedDrivability = 0;
         for(uint8_t i = 0; i <= innerStats.getHighestTraversabilityClass(); i++)
@@ -238,14 +238,14 @@ void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
     vfh_star::VFHConf vfhConf;
     vfhConf = conf.vfhConfig;
     vfhConf.obstacleSafetyDistance = conf.obstacleSafetyRadius;
-    vfhConf.robotWidth = std::min(conf.robotHeight, conf.robotWidth);
+    vfhConf.robotWidth = std::min(conf.robotLength, conf.robotWidth);
     vfh.setConfig(vfhConf);
     
     //TODO add oversampling for front
     cost_conf = conf;
     
-    virtualWidth = cost_conf.robotWidth + cost_conf.vfhConfig.obstacleSafetyDistance * 2.0;
-    virtualHeight = cost_conf.robotHeight + cost_conf.vfhConfig.obstacleSafetyDistance * 2.0;
+    virtualSizeX = cost_conf.robotLength + cost_conf.vfhConfig.obstacleSafetyDistance * 2.0;
+    virtualSizeY = cost_conf.robotWidth + cost_conf.vfhConfig.obstacleSafetyDistance * 2.0;
 //     search_conf.angularSamplingMin = asin((search_conf.stepDistance / 5.0) / search_conf.stepDistance);
 //     std::cout << "setting min sampling to " << search_conf.angularSamplingMin / M_PI * 180 << std::endl;
 }
@@ -322,7 +322,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         //not this pose is in map coordinates, which is just right in this case
         base::Pose2D pose(nodes[i]->getPose());
         
-        const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualWidth, virtualHeight);
+        const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
         if(!klass.isTraversable())
         {
             std::cout << "Cutting trajectory at pos " << i << " from " << size << std::endl;
