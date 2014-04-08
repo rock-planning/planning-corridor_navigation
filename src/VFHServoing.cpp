@@ -90,7 +90,7 @@ public:
                     return std::numeric_limits<double>::infinity();
                 }
                 
-                accumulatedDrivability += klass.getDrivability() * count / innerStats.getTotalCount(); 
+                accumulatedDrivability += (klass.getDrivability() * count) / innerStats.getTotalCount(); 
             }
         }
         
@@ -108,10 +108,15 @@ public:
                 double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
                 assert(impactFactor < 1.001 && impactFactor >= 0);
 
-                accumulatedOuterDrivability -= (1 - klass.getDrivability()) * count / innerStats.getTotalCount() * impactFactor;
+                accumulatedOuterDrivability -= ((1.0 - klass.getDrivability()) * count) / innerStats.getTotalCount() * impactFactor;
             }
         }
-        
+    
+        if(accumulatedOuterDrivability < 0 || accumulatedDrivability < 0)
+        {
+            std::cout << "Error accumulated driviability smaler than 0 this should not happen " << accumulatedDrivability << " outer " << accumulatedOuterDrivability << std::endl;
+        }
+    
         double innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - accumulatedDrivability);
         double outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - accumulatedOuterDrivability);
         
