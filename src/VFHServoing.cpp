@@ -330,7 +330,13 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
         if(!klass.isTraversable())
         {
-            std::cout << "Cutting trajectory at pos " << i << " from " << size << std::endl;
+            std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Obstacle " << std::endl;
+            break;
+        }
+        
+        if(vfh.getTraversabilityGrid()->getWorstProbabilityInRectangle(pose, virtualSizeX, virtualSizeY) < 0.01)
+        {
+            std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Unknown " << std::endl;
             break;
         }
     }
