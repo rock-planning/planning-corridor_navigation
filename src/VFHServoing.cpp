@@ -132,7 +132,7 @@ public:
         
     //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
                                     
-        speedPenaltyForTerrain = innerSpeedPenalty + outerSpeedPenalty;
+        speedPenaltyForTerrain = std::max(innerSpeedPenalty, outerSpeedPenalty);
     
 
         // Check if we must point turn
