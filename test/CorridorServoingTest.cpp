@@ -136,7 +136,6 @@ int main()
     servoingConf.robotWidth= robotWidth;
     servoingConf.robotLength = 1.0;
     servoingConf.obstacleSafetyRadius= 0.05;
-    servoingConf.baseTurnCost= 1.0;
     servoingConf.maxInnerSpeedPenalty= 0.25;
     servoingConf.maxOuterSpeedPenalty= 0.1;
     servoingConf.driveModeChangeCost = 0.05;
