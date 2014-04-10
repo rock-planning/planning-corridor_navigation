@@ -76,6 +76,7 @@ public:
         
         vfh.getTraversabilityGrid()->computeStatistic(p2d, virtualSizeX, virtualSizeY, outer_radius, innerStats, outerStats);
             
+        double worstInnerDrivability = 1.0;
         double accumulatedDrivability = 0;
         for(uint8_t i = 0; i <= innerStats.getHighestTraversabilityClass(); i++)
         {
@@ -90,11 +91,15 @@ public:
                     return std::numeric_limits<double>::infinity();
                 }
                 
+                if(worstInnerDrivability > klass.getDrivability())
+                    worstInnerDrivability = klass.getDrivability();
+                
                 accumulatedDrivability += (klass.getDrivability() * count) / innerStats.getTotalCount(); 
             }
         }
         
         double accumulatedOuterDrivability = 1.0;
+        double worstOuterDrivability = 1.0;
         
         for(uint8_t i = 0; i <= outerStats.getHighestTraversabilityClass(); i++)
         {
@@ -104,8 +109,10 @@ public:
             
             if(count)
             {
-                const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
                 double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
+                const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
+                double curDrivability = klass.getDrivability() * impactFactor;
+                worstOuterDrivability = std::min(worstOuterDrivability, curDrivability);
                 assert(impactFactor < 1.001 && impactFactor >= 0);
 
                 accumulatedOuterDrivability -= ((1.0 - klass.getDrivability()) * count) / innerStats.getTotalCount() * impactFactor;
@@ -119,6 +126,9 @@ public:
     
         double innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - accumulatedDrivability);
         double outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - accumulatedOuterDrivability);
+
+        innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - worstInnerDrivability);
+        outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - worstOuterDrivability);
         
     //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
                                     
@@ -142,7 +152,7 @@ public:
         current_speed -= speedPenaltyForTerrain;
         
         if(current_speed < cost_conf.minimalSpeed) {
-            std::cout << "Error speed is negative " << current_speed << std::endl;
+//             std::cout << "Error speed is negative " << current_speed << std::endl;
             current_speed = cost_conf.minimalSpeed;
         }
         
