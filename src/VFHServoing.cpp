@@ -115,6 +115,16 @@ public:
             
             if(count)
             {
+		if(minDistToRobot < 0)
+		{
+		    std::cout << "Warning, minDistToRobot < 0" << std::endl;
+		    minDistToRobot = 0.0;
+		}
+		if(minDistToRobot > outer_radius)
+		{
+		    std::cout << "Warning, minDistToRobot > outer_radius" << std::endl;
+		    minDistToRobot = outer_radius;
+		}
                 double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
                 const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
                 double curDrivability = klass.getDrivability() * impactFactor;
