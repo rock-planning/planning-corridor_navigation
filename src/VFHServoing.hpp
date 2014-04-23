@@ -54,7 +54,7 @@ namespace corridor_navigation
          * The map is used while computing the optimal path
          * to the horizon.
          * */
-        void setNewTraversabilityGrid(const envire::TraversabilityGrid *trGrid);
+        void setNewTraversabilityGrid(envire::TraversabilityGrid* trGrid);
         
     private:
 	VFHServoingConf cost_conf;
@@ -75,6 +75,12 @@ namespace corridor_navigation
 	virtual bool isTerminalNode(const vfh_star::TreeNode& node) const; 
 	
         virtual AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode) const;
+        
+        void setUnknownToObstacle(size_t x, size_t y);
+        envire::TraversabilityGrid *traversabilityGrid;
+        envire::TraversabilityGrid::ArrayType *traversabilityData;
+        uint8_t obstacleClassNumber;
+        
     };
 }
 

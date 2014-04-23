@@ -2,6 +2,7 @@
 #include <vfh_star/VFHStar.h>
 #include <base/angle.h>
 #include <assert.h>
+#include <boost/bind.hpp>
 
 
 using namespace corridor_navigation;
@@ -265,10 +266,11 @@ void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
 //     std::cout << "setting min sampling to " << search_conf.angularSamplingMin / M_PI * 180 << std::endl;
 }
 
-void VFHServoing::setNewTraversabilityGrid(const envire::TraversabilityGrid* trGrid)
+void VFHServoing::setNewTraversabilityGrid(envire::TraversabilityGrid* trGrid)
 {
     vfh.setNewTraversabilityGrid(trGrid);
     setTreeToWorld(vfh.getTraversabilityGrid()->getFrameNode()->relativeTransform(vfh.getTraversabilityGrid()->getEnvironment()->getRootNode()));
+    traversabilityGrid = trGrid;
 }
 
 bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
@@ -298,6 +300,14 @@ double VFHServoing::getHeuristic(const vfh_star::TreeNode& node) const
     return d_to_goal / cost_conf.baseSpeed;
 }
 
+void VFHServoing::setUnknownToObstacle(size_t x, size_t y)
+{
+    if(traversabilityGrid->getProbability(x, y) < 0.0001)
+    {
+        (*traversabilityData)[y][x] = obstacleClassNumber;
+    }
+}
+
 VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, const base::Angle &mainHeading, 
                                                          double horizon, const Eigen::Affine3d& world2Trajectory, double minTrajectoryLenght)
 {   
@@ -308,6 +318,32 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         result = std::vector<base::Trajectory>();
         return NO_SOLUTION;
     }
+    
+    //compute position half robot length back
+    base::Pose2D rectPos(start);
+    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-cost_conf.robotLength/2.0,0); 
+    
+    bool found = false;
+    uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
+    //search for obstacle class
+    for(uint8_t i = 0; i < numClasses; i++)
+    {
+        if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
+        {
+            found = true;
+            obstacleClassNumber = i;
+            break;
+        }
+    }
+    
+    if(!found)
+        throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
+    
+    traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
+    
+    //mark unknown in radius as obstacle
+    vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, cost_conf.robotLength, cost_conf.robotWidth * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
+    
     
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
     if (!curNode)
