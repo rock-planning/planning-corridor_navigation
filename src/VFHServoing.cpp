@@ -38,6 +38,11 @@ public:
     {
         
     }
+
+    virtual ~VFHServoingDriveMode()
+    {
+    }
+
     virtual double getCostForNode(const ProjectedPose& projection, const base::Angle& direction, const TreeNode& parentNode) const
     {
         //cost in time
