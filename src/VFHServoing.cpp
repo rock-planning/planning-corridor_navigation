@@ -335,7 +335,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     }
     
     //compute position half robot length back
-    base::Pose2D rectPos(start);
+    base::Pose2D rectPos(getTreeToWorld().inverse() * start.toTransform());
     rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-cost_conf.robotLength/2.0,0); 
     
     bool found = false;
