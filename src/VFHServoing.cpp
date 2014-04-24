@@ -337,28 +337,30 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     //compute position half robot length back
     base::Pose2D rectPos(getTreeToWorld().inverse() * start.toTransform());
     rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-cost_conf.robotLength/2.0,0); 
-    
-    bool found = false;
-    uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
-    //search for obstacle class
-    for(uint8_t i = 0; i < numClasses; i++)
+
+    if(cost_conf.makeUnkownTerrainOnStartObstacles)
     {
-        if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
+        bool found = false;
+        uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
+        //search for obstacle class
+        for(uint8_t i = 0; i < numClasses; i++)
         {
-            found = true;
-            obstacleClassNumber = i;
-            break;
+            if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
+            {
+                found = true;
+                obstacleClassNumber = i;
+                break;
+            }
         }
-    }
-    
-    if(!found)
-        throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
-    
-    traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
-    
-    //mark unknown in radius as obstacle
-    vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, cost_conf.robotLength, cost_conf.robotWidth * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
-    
+        
+        if(!found)
+            throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
+        
+        traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
+        
+        //mark unknown in radius as obstacle
+        vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, cost_conf.robotLength, cost_conf.robotWidth * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
+    }    
     
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
     if (!curNode)
@@ -378,37 +380,40 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
 	nodeTmp = nodeTmp->getParent();
     }    
 
-    int minSteps = ceil(minTrajectoryLenght / search_conf.stepDistance);
-    
-    //look for anything that is not traversable on
-    //the computed route, e.g unknow or shadow
-    int i;
-    for (i = 1; i < size; ++i)
+    if(cost_conf.cutTrajectoryOnUnknownTerrain)
     {
-        //not this pose is in map coordinates, which is just right in this case
-        base::Pose2D pose(nodes[i]->getPose());
+        int minSteps = ceil(minTrajectoryLenght / search_conf.stepDistance);
         
-        const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
-        if(!klass.isTraversable())
+        //look for anything that is not traversable on
+        //the computed route, e.g unknow or shadow
+        int i;
+        for (i = 1; i < size; ++i)
         {
-            std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Obstacle " << std::endl;
-            break;
+            //not this pose is in map coordinates, which is just right in this case
+            base::Pose2D pose(nodes[i]->getPose());
+            
+            const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
+            if(!klass.isTraversable())
+            {
+                std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Obstacle " << std::endl;
+                break;
+            }
+            
+            if(vfh.getTraversabilityGrid()->getWorstProbabilityInRectangle(pose, virtualSizeX, virtualSizeY) < 0.01)
+            {
+                std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Unknown " << std::endl;
+                break;
+            }
         }
         
-        if(vfh.getTraversabilityGrid()->getWorstProbabilityInRectangle(pose, virtualSizeX, virtualSizeY) < 0.01)
+        //cut off the unknown part
+        nodes.resize(i);
+        
+        if(i <= minSteps)
         {
-            std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Unknown " << std::endl;
-            break;
+            result = std::vector<base::Trajectory>();
+            return TRAJECTORY_THROUGH_UNKNOWN;
         }
-    }
-    
-    //cut off the unknown part
-    nodes.resize(i);
-    
-    if(i <= minSteps)
-    {
-	result = std::vector<base::Trajectory>();
-	return TRAJECTORY_THROUGH_UNKNOWN;
     }
      
     result = buildTrajectoriesTo(nodes, world2Trajectory);

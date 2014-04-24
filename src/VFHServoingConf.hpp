@@ -73,10 +73,24 @@ namespace corridor_navigation {
          * */
         vfh_star::VFHConf vfhConfig;
 	
+        /**
+         * If set to true, the planned trajectory will 
+         * be cut as soon, as the robot enters unknown terrain.
+         * */
+        bool cutTrajectoryOnUnknownTerrain;
+
+        /**
+         * If set to true, the planner will make all unknown
+         * terrain patche BEHIND him an obstacle. This is usefull,
+         * if the cutTrajectoryOnUnknownTerrain is also set, and there
+         * is no sensor coverage behind the robot.
+         * */
+        bool makeUnkownTerrainOnStartObstacles;
+
 	VFHServoingConf() : baseSpeed(0), speedReductionForTurning(0), pointTurnThreshold(0), pointTurnSpeed(0), 
                             speedAfterPointTurn(0), robotWidth(0), robotLength(0),
                             maxInnerSpeedPenalty(0), maxOuterSpeedPenalty(0), driveModeChangeCost(0), 
-                            minimalSpeed(0)
+                            minimalSpeed(0), cutTrajectoryOnUnknownTerrain(true), makeUnkownTerrainOnStartObstacles(true)
 	{}
     };
 }
