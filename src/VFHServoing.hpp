@@ -87,6 +87,7 @@ namespace corridor_navigation
         envire::TraversabilityGrid *originalTraversabilityGrid;
         envire::TraversabilityGrid *traversabilityGrid;
         envire::TraversabilityGrid::ArrayType *traversabilityData;
+        envire::TraversabilityGrid::ArrayType *probabilityData;
         uint8_t obstacleClassNumber;
         
     };

@@ -330,6 +330,8 @@ void VFHServoing::setUnknownToObstacle(size_t x, size_t y)
     if(traversabilityGrid->getProbability(x, y) < 0.0001)
     {
         (*traversabilityData)[y][x] = obstacleClassNumber;
+        //can't use helper function here, cause bug with copy constructor...
+        (*probabilityData)[y][x] = 255;
     }
 }
 
@@ -368,6 +370,7 @@ void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
         throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
     
     traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
+    probabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::PROBABILITY));
 
     //compute position half robot length back
     base::Pose2D rectPos(getTreeToWorld().inverse() * start_world.toTransform());
