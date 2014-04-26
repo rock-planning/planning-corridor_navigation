@@ -336,7 +336,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     
     //compute position half robot length back
     base::Pose2D rectPos(getTreeToWorld().inverse() * start.toTransform());
-    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-cost_conf.robotLength/2.0,0); 
+    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
 
     if(cost_conf.makeUnkownTerrainOnStartObstacles)
     {
@@ -359,7 +359,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
         
         //mark unknown in radius as obstacle
-        vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, cost_conf.robotLength, cost_conf.robotWidth * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
+        vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
     }    
     
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
