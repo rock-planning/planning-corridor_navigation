@@ -371,7 +371,7 @@ void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
 
     //compute position half robot length back
     base::Pose2D rectPos(getTreeToWorld().inverse() * start_world.toTransform());
-    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
+    rectPos.position += Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
 
     //mark unknown in radius as obstacle
     if(!traversabilityGrid->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2)))
