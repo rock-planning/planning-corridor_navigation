@@ -75,12 +75,11 @@ public:
         base::Pose2D p2d(p);
         
         const VFHServoingConf &cost_conf(servoing.cost_conf);
-        const vfh_star::VFH &vfh(servoing.vfh);
         
         const double &virtualSizeX(servoing.virtualSizeX);
         const double &virtualSizeY(servoing.virtualSizeY);
         
-        vfh.getTraversabilityGrid()->computeStatistic(p2d, virtualSizeX, virtualSizeY, outer_radius, innerStats, outerStats);
+        servoing.traversabilityGrid->computeStatistic(p2d, virtualSizeX, virtualSizeY, outer_radius, innerStats, outerStats);
             
         double worstInnerDrivability = 1.0;
         double accumulatedDrivability = 0;
@@ -89,7 +88,7 @@ public:
             size_t count = innerStats.getClassCount(i);
             if(count)
             {
-                const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
+                const envire::TraversabilityClass &klass(servoing.traversabilityGrid->getTraversabilityClass(i));
 
                 if(!klass.isTraversable())
                 {
@@ -126,7 +125,7 @@ public:
 		    minDistToRobot = outer_radius;
 		}
                 double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
-                const envire::TraversabilityClass &klass(vfh.getTraversabilityGrid()->getTraversabilityClass(i));
+                const envire::TraversabilityClass &klass(servoing.traversabilityGrid->getTraversabilityClass(i));
                 double curDrivability = klass.getDrivability() * impactFactor;
                 worstOuterDrivability = std::min(worstOuterDrivability, curDrivability);
                 assert(impactFactor < 1.001 && impactFactor >= 0);
@@ -241,7 +240,7 @@ public:
     };
 };
 
-VFHServoing::VFHServoing(): allowBackwardsDriving(false), forward(new DriveModeForward(*this)), backward(new DriveModeBackward(*this)), traversabilityGrid(NULL)
+VFHServoing::VFHServoing(): allowBackwardsDriving(false), forward(new DriveModeForward(*this)), backward(new DriveModeBackward(*this)), env(NULL), traversabilityGrid(NULL)
 {
     addDriveMode(*forward);
 }
@@ -283,8 +282,9 @@ void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
 
 void VFHServoing::setNewTraversabilityGrid(envire::TraversabilityGrid* trGrid)
 {
-    setTreeToWorld(vfh.getTraversabilityGrid()->getFrameNode()->relativeTransform(vfh.getTraversabilityGrid()->getEnvironment()->getRootNode()));
+    setTreeToWorld(trGrid->getFrameNode()->relativeTransform(trGrid->getEnvironment()->getRootNode()));
     originalTraversabilityGrid = trGrid;
+    traversabilityGrid = trGrid;
 }
 
 const envire::TraversabilityGrid& VFHServoing::getInternalTraversabilityGrid()
@@ -294,7 +294,7 @@ const envire::TraversabilityGrid& VFHServoing::getInternalTraversabilityGrid()
 
 envire::Environment* VFHServoing::getInternalEnvironment()
 {
-    return &env;
+    return env;
 }
 
 
@@ -336,27 +336,27 @@ void VFHServoing::setUnknownToObstacle(size_t x, size_t y)
 void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
 {
     //first copy the original Grid
-    if(traversabilityGrid)
-    {        
-        env.detachItem(traversabilityGrid->getFrameNode());
-        env.detachItem(traversabilityGrid);
+    if(env)
+    {
+        delete env;
     }
     
+    env = new envire::Environment();
+    
     traversabilityGrid = new envire::TraversabilityGrid(*originalTraversabilityGrid);
-    envire::FrameNode *fr = new envire::FrameNode(*(originalTraversabilityGrid->getFrameNode()));
+    envire::FrameNode *fr = new envire::FrameNode(originalTraversabilityGrid->getFrameNode()->relativeTransform(originalTraversabilityGrid->getEnvironment()->getRootNode()));
     
-    env.attachItem(fr);
-    env.attachItem(traversabilityGrid);
-    env.setFrameNode(traversabilityGrid, fr);
-    
-    vfh.setNewTraversabilityGrid(traversabilityGrid);
+    env->attachItem(fr);
+    env->attachItem(traversabilityGrid);
+    env->setFrameNode(traversabilityGrid, fr);
+    env->getRootNode()->addChild(fr);
     
     bool found = false;
-    uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
+    uint8_t numClasses = traversabilityGrid->getTraversabilityClasses().size();
     //search for obstacle class
     for(uint8_t i = 0; i < numClasses; i++)
     {
-        if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
+        if(traversabilityGrid->getTraversabilityClass(i).getDrivability() < 0.001)
         {
             found = true;
             obstacleClassNumber = i;
@@ -374,7 +374,10 @@ void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
     rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
 
     //mark unknown in radius as obstacle
-    vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
+    if(!traversabilityGrid->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2)))
+    {
+        std::cout << "Each in rect failed : rectPos " << rectPos.position.transpose() << std::endl;
+    };
     
 }
 
@@ -382,7 +385,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
                                                          double horizon, const Eigen::Affine3d& world2Trajectory, double minTrajectoryLenght)
 {   
     size_t xi, yi;
-    if(!vfh.getTraversabilityGrid()->toGrid(start.position, xi, yi, vfh.getTraversabilityGrid()->getEnvironment()->getRootNode()))
+    if(!traversabilityGrid->toGrid(start.position, xi, yi, traversabilityGrid->getEnvironment()->getRootNode()))
     {
         std::cout << "Warning, pose is not in grid" <<std::endl;
         result = std::vector<base::Trajectory>();
@@ -393,10 +396,8 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
     {
         markUnkownTerrainOnStartAsObstacle(start);
     }
-    else
-    {
-        vfh.setNewTraversabilityGrid(originalTraversabilityGrid);
-    }
+    
+    vfh.setNewTraversabilityGrid(traversabilityGrid);
     
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
     if (!curNode)
@@ -428,14 +429,14 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
             //not this pose is in map coordinates, which is just right in this case
             base::Pose2D pose(nodes[i]->getPose());
             
-            const envire::TraversabilityClass &klass = vfh.getTraversabilityGrid()->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
+            const envire::TraversabilityClass &klass = traversabilityGrid->getWorstTraversabilityClassInRectangle(pose, virtualSizeX, virtualSizeY);
             if(!klass.isTraversable())
             {
                 std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Obstacle " << std::endl;
                 break;
             }
             
-            if(vfh.getTraversabilityGrid()->getWorstProbabilityInRectangle(pose, virtualSizeX, virtualSizeY) < 0.01)
+            if(traversabilityGrid->getWorstProbabilityInRectangle(pose, virtualSizeX, virtualSizeY) < 0.01)
             {
                 std::cout << "Cutting trajectory at pos " << i << " from " << size << " reason: Unknown " << std::endl;
                 break;

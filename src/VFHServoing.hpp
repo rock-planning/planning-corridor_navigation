@@ -83,7 +83,7 @@ namespace corridor_navigation
         void markUnkownTerrainOnStartAsObstacle(base::Pose start_world);
         
         void setUnknownToObstacle(size_t x, size_t y);
-        envire::Environment env;
+        envire::Environment *env;
         envire::TraversabilityGrid *originalTraversabilityGrid;
         envire::TraversabilityGrid *traversabilityGrid;
         envire::TraversabilityGrid::ArrayType *traversabilityData;
