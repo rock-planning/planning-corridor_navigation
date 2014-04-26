@@ -56,6 +56,10 @@ namespace corridor_navigation
          * */
         void setNewTraversabilityGrid(envire::TraversabilityGrid* trGrid);
         
+        const envire::TraversabilityGrid & getInternalTraversabilityGrid();
+   
+        envire::Environment *getInternalEnvironment();
+        
     private:
 	VFHServoingConf cost_conf;
         vfh_star::VFH vfh;
@@ -76,7 +80,11 @@ namespace corridor_navigation
 	
         virtual AngleIntervals getNextPossibleDirections(const vfh_star::TreeNode& curNode) const;
         
+        void markUnkownTerrainOnStartAsObstacle(base::Pose start_world);
+        
         void setUnknownToObstacle(size_t x, size_t y);
+        envire::Environment env;
+        envire::TraversabilityGrid *originalTraversabilityGrid;
         envire::TraversabilityGrid *traversabilityGrid;
         envire::TraversabilityGrid::ArrayType *traversabilityData;
         uint8_t obstacleClassNumber;

@@ -241,7 +241,7 @@ public:
     };
 };
 
-VFHServoing::VFHServoing(): allowBackwardsDriving(false), forward(new DriveModeForward(*this)), backward(new DriveModeBackward(*this))
+VFHServoing::VFHServoing(): allowBackwardsDriving(false), forward(new DriveModeForward(*this)), backward(new DriveModeBackward(*this)), traversabilityGrid(NULL)
 {
     addDriveMode(*forward);
 }
@@ -283,10 +283,20 @@ void VFHServoing::setCostConf(const corridor_navigation::VFHServoingConf& conf)
 
 void VFHServoing::setNewTraversabilityGrid(envire::TraversabilityGrid* trGrid)
 {
-    vfh.setNewTraversabilityGrid(trGrid);
     setTreeToWorld(vfh.getTraversabilityGrid()->getFrameNode()->relativeTransform(vfh.getTraversabilityGrid()->getEnvironment()->getRootNode()));
-    traversabilityGrid = trGrid;
+    originalTraversabilityGrid = trGrid;
 }
+
+const envire::TraversabilityGrid& VFHServoing::getInternalTraversabilityGrid()
+{
+    return *traversabilityGrid;
+}
+
+envire::Environment* VFHServoing::getInternalEnvironment()
+{
+    return &env;
+}
+
 
 bool VFHServoing::validateNode(const vfh_star::TreeNode& node) const
 {
@@ -323,6 +333,51 @@ void VFHServoing::setUnknownToObstacle(size_t x, size_t y)
     }
 }
 
+void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
+{
+    //first copy the original Grid
+    if(traversabilityGrid)
+    {        
+        env.detachItem(traversabilityGrid->getFrameNode());
+        env.detachItem(traversabilityGrid);
+    }
+    
+    traversabilityGrid = new envire::TraversabilityGrid(*originalTraversabilityGrid);
+    envire::FrameNode *fr = new envire::FrameNode(*(originalTraversabilityGrid->getFrameNode()));
+    
+    env.attachItem(fr);
+    env.attachItem(traversabilityGrid);
+    env.setFrameNode(traversabilityGrid, fr);
+    
+    vfh.setNewTraversabilityGrid(traversabilityGrid);
+    
+    bool found = false;
+    uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
+    //search for obstacle class
+    for(uint8_t i = 0; i < numClasses; i++)
+    {
+        if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
+        {
+            found = true;
+            obstacleClassNumber = i;
+            break;
+        }
+    }
+    
+    if(!found)
+        throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
+    
+    traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
+
+    //compute position half robot length back
+    base::Pose2D rectPos(getTreeToWorld().inverse() * start_world.toTransform());
+    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
+
+    //mark unknown in radius as obstacle
+    vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
+    
+}
+
 VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Trajectory >& result, const base::Pose& start, const base::Angle &mainHeading, 
                                                          double horizon, const Eigen::Affine3d& world2Trajectory, double minTrajectoryLenght)
 {   
@@ -334,33 +389,14 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         return NO_SOLUTION;
     }
     
-    //compute position half robot length back
-    base::Pose2D rectPos(getTreeToWorld().inverse() * start.toTransform());
-    rectPos.position -= Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
-
     if(cost_conf.makeUnkownTerrainOnStartObstacles)
     {
-        bool found = false;
-        uint8_t numClasses = vfh.getTraversabilityGrid()->getTraversabilityClasses().size();
-        //search for obstacle class
-        for(uint8_t i = 0; i < numClasses; i++)
-        {
-            if(vfh.getTraversabilityGrid()->getTraversabilityClass(i).getDrivability() < 0.001)
-            {
-                found = true;
-                obstacleClassNumber = i;
-                break;
-            }
-        }
-        
-        if(!found)
-            throw std::runtime_error("VFHServoing::TraversabilityGrid does not contain an obstacle class");
-        
-        traversabilityData = &(traversabilityGrid->getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
-        
-        //mark unknown in radius as obstacle
-        vfh.getTraversabilityGrid()->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2));
-    }    
+        markUnkownTerrainOnStartAsObstacle(start);
+    }
+    else
+    {
+        vfh.setNewTraversabilityGrid(originalTraversabilityGrid);
+    }
     
     TreeNode const* curNode = computePath(start, mainHeading, horizon, world2Trajectory);
     if (!curNode)
