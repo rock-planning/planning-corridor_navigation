@@ -68,7 +68,7 @@ public:
         
         double current_speed = 0;
         double speedPenaltyForTerrain = 0;
-        const double outer_radius = 0.3;
+        const double outer_radius = servoing.cost_conf.outerRadiusSize;
         
         envire::TraversabilityStatistic innerStats;
         envire::TraversabilityStatistic outerStats;

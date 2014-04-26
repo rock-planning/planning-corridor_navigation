@@ -38,6 +38,14 @@ namespace corridor_navigation {
          * Lenght of the robot.
          * */
         double robotLength;
+
+        /**
+         * Size of the radius around the robot, that is used
+         * for obstacle avoidance. This parameter is related to
+         * maxOuterSpeedPenalty.
+         * 
+         * */
+        double outerRadiusSize;
         
         /**
          * Safety radius. The robots dimensions will be extended
@@ -88,7 +96,7 @@ namespace corridor_navigation {
         bool makeUnkownTerrainOnStartObstacles;
 
 	VFHServoingConf() : baseSpeed(0), speedReductionForTurning(0), pointTurnThreshold(0), pointTurnSpeed(0), 
-                            speedAfterPointTurn(0), robotWidth(0), robotLength(0),
+                            speedAfterPointTurn(0), robotWidth(0), robotLength(0), outerRadiusSize(0.3), obstacleSafetyRadius(0.0),
                             maxInnerSpeedPenalty(0), maxOuterSpeedPenalty(0), driveModeChangeCost(0), 
                             minimalSpeed(0), cutTrajectoryOnUnknownTerrain(true), makeUnkownTerrainOnStartObstacles(true)
 	{}
