@@ -186,15 +186,12 @@ public:
     {
         //super omnidirectional robot
         base::Vector3d p(distance, 0, 0);
-        base::Angle curHeading = curNode.getYaw();
-
-        // Compute rate of turn for front to wanted heading
-        double angleDiffForward = fabs((moveDirection - curHeading).getRad());
+//         base::Angle curHeading = curNode.getYaw();
 
         //forward case
-        result.pose.orientation = Eigen::AngleAxisd(moveDirection.getRad(), base::Vector3d::UnitZ());
+        result.pose.orientation = curNode.getPose().orientation * Eigen::AngleAxisd(moveDirection.getRad(), base::Vector3d::UnitZ());
         result.pose.position = curNode.getPose().position + result.pose.orientation * p;
-        result.angleTurned = angleDiffForward;
+        result.angleTurned = fabs((moveDirection).getRad());
         result.nextPoseExists = true;
         
         return true;
@@ -216,14 +213,11 @@ public:
     {
         //super omnidirectional robot
         base::Vector3d p(distance, 0, 0);
-        base::Angle curHeading = curNode.getYaw();
+//         base::Angle curHeading = curNode.getYaw();
 
-        // Compute rate of turn for back to wanted heading
-        double angleDiffBackward = fabs((moveDirection.flipped() - curHeading).getRad());
-
-        result.pose.orientation = Eigen::AngleAxisd(moveDirection.flipped().getRad(), base::Vector3d::UnitZ());
+        result.pose.orientation = curNode.getPose().orientation * Eigen::AngleAxisd(moveDirection.flipped().getRad(), base::Vector3d::UnitZ());
         result.pose.position = curNode.getPose().position - result.pose.orientation * p;
-        result.angleTurned = angleDiffBackward;
+        result.angleTurned = fabs((moveDirection.flipped()).getRad());
         result.nextPoseExists = true;
         return true;;
     }
