@@ -17,16 +17,18 @@ const int UNKNOWN = 0;
 const int OBSTACLE = 1;
 const int TRAVERSABLE = 2;
 
-void markAsObstacle(envire::TraversabilityGrid::ArrayType &trData, size_t x, size_t y)
+void markAsObstacle(envire::TraversabilityGrid::ArrayType &trData, envire::TraversabilityGrid::ArrayType &probData, size_t x, size_t y)
 {
     trData[y][x] = OBSTACLE;
+    probData[y][x] = 255;
 }
 
 
 void addObstacle(envire::TraversabilityGrid &trGrid, const base::Pose &pose, double width, double height)
 {
     envire::TraversabilityGrid::ArrayType &trData(trGrid.getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
-    trGrid.forEachInRectangle(pose, height, width, boost::bind(markAsObstacle, boost::ref(trData), _1, _2));
+    envire::TraversabilityGrid::ArrayType &probData(trGrid.getGridData(envire::TraversabilityGrid::PROBABILITY));
+    trGrid.forEachInRectangle(pose, height, width, boost::bind(markAsObstacle, boost::ref(trData), boost::ref(probData), _1, _2));
 }
 
 int main()
@@ -55,6 +57,10 @@ int main()
     envire::TraversabilityGrid::ArrayType &trData(trGrid.getGridData(envire::TraversabilityGrid::TRAVERSABILITY));
     std::fill(trData.data(), trData.data() + trData.num_elements(), TRAVERSABLE);
 
+    envire::TraversabilityGrid::ArrayType &probData(trGrid.getGridData(envire::TraversabilityGrid::PROBABILITY));
+    std::fill(probData.data(), probData.data() + probData.num_elements(), 255);
+
+    
     double robotWidth = 0.5;
     double borderWidth = 0.15;
     double obstHeight = 3.2;
