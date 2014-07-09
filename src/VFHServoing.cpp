@@ -82,7 +82,6 @@ public:
         servoing.traversabilityGrid->computeStatistic(p2d, virtualSizeX, virtualSizeY, outer_radius, innerStats, outerStats);
             
         double worstInnerDrivability = 1.0;
-        double accumulatedDrivability = 0;
         for(uint8_t i = 0; i <= innerStats.getHighestTraversabilityClass(); i++)
         {
             size_t count = innerStats.getClassCount(i);
@@ -97,14 +96,11 @@ public:
                 }
                 
                 if(worstInnerDrivability > klass.getDrivability())
-                    worstInnerDrivability = klass.getDrivability();
-                
-                accumulatedDrivability += (klass.getDrivability() * count) / innerStats.getTotalCount(); 
+                    worstInnerDrivability = klass.getDrivability();                
             }
         }
         
-        double accumulatedOuterDrivability = 1.0;
-        double worstOuterDrivability = 1.0;
+        double maxOuterPenalty = 0.0;
         
         for(uint8_t i = 0; i <= outerStats.getHighestTraversabilityClass(); i++)
         {
@@ -125,27 +121,22 @@ public:
 		    minDistToRobot = outer_radius;
 		}
                 double impactFactor = (outer_radius - minDistToRobot) / outer_radius;
+//                 std::cout << "Impact factor  " << impactFactor << " outer_radius " << outer_radius << " minDistToRobot " << minDistToRobot << std::endl;
                 const envire::TraversabilityClass &klass(servoing.traversabilityGrid->getTraversabilityClass(i));
-                double curDrivability = klass.getDrivability() * impactFactor;
-                worstOuterDrivability = std::min(worstOuterDrivability, curDrivability);
+                double curPenalty = (1.0 - klass.getDrivability()) * impactFactor;
+                maxOuterPenalty = std::max(maxOuterPenalty, curPenalty);
                 assert(impactFactor < 1.001 && impactFactor >= 0);
-
-                accumulatedOuterDrivability -= ((1.0 - klass.getDrivability()) * count) / innerStats.getTotalCount() * impactFactor;
             }
         }
     
-        if(accumulatedOuterDrivability < 0 || accumulatedDrivability < 0)
-        {
-            std::cout << "Error accumulated driviability smaler than 0 this should not happen " << accumulatedDrivability << " outer " << accumulatedOuterDrivability << std::endl;
-        }
     
-        double innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - accumulatedDrivability);
-        double outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - accumulatedOuterDrivability);
+        double innerSpeedPenalty;
+        double outerSpeedPenalty;
 
         innerSpeedPenalty = cost_conf.maxInnerSpeedPenalty * (1 - worstInnerDrivability);
-        outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (1 - worstOuterDrivability);
+        outerSpeedPenalty = cost_conf.maxOuterSpeedPenalty * (maxOuterPenalty);
         
-    //     std::cout << "Outer Pen " << outerSpeedPenalty << " cnt " << outerStats.getTerrainCount() << " Inner " << innerSpeedPenalty << " cnt " << innerStats.getTerrainCount() << " safe dist " << search_conf.obstacleSafetyDistance << std::endl;
+//         std::cout << "Outer Pen " << outerSpeedPenalty << " Inner " << innerSpeedPenalty << std::endl;
                                     
         speedPenaltyForTerrain = std::max(innerSpeedPenalty, outerSpeedPenalty);
     
@@ -177,6 +168,8 @@ public:
             cost += cost_conf.driveModeChangeCost;
         }
 
+//         std::cout << "Cost is " << cost << " distance " << distance << " current_speed " << current_speed << " base speed " << cost_conf.baseSpeed << std::endl;
+        
 
         return cost + distance / current_speed;
     }
