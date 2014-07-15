@@ -34,7 +34,7 @@ class corridor_navigation::VFHServoingDriveMode : public vfh_star::DriveMode
 {
     const VFHServoing &servoing;
 public:
-    VFHServoingDriveMode(const VFHServoing &servoing) : servoing(servoing)
+    VFHServoingDriveMode(const std::string &identifier, const VFHServoing &servoing) : DriveMode(identifier),  servoing(servoing)
     {
         
     }
@@ -178,7 +178,7 @@ public:
 class DriveModeForward : public VFHServoingDriveMode
 {
 public:
-    DriveModeForward(const VFHServoing& servoing) : VFHServoingDriveMode(servoing)
+    DriveModeForward(const VFHServoing& servoing) : VFHServoingDriveMode("DriveModeForward", servoing)
     {
     }
     
@@ -200,12 +200,13 @@ public:
     {
         tr.speed = 1.0;
     };
+    
 };
 
 class DriveModeBackward : public VFHServoingDriveMode
 {
 public:
-    DriveModeBackward(const VFHServoing& servoing) :VFHServoingDriveMode(servoing)
+    DriveModeBackward(const VFHServoing& servoing) :VFHServoingDriveMode("DriveModeBackward", servoing)
     {
     }
     
