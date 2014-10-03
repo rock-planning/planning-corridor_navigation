@@ -365,7 +365,7 @@ void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
     rectPos.position += Eigen::Rotation2D<double>(rectPos.orientation) * Eigen::Vector2d(-virtualSizeX/2.0,0); 
 
     //mark unknown in radius as obstacle
-    if(!traversabilityGrid->forEachInRectangle(rectPos, virtualSizeX, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2)))
+    if(!traversabilityGrid->forEachInRectangle(rectPos, virtualSizeX * 2.0, virtualSizeY * 2.0, boost::bind(&VFHServoing::setUnknownToObstacle, this, _1, _2)))
     {
         std::cout << "Each in rect failed : rectPos " << rectPos.position.transpose() << std::endl;
     };
