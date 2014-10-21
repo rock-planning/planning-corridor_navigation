@@ -340,6 +340,11 @@ void VFHServoing::markUnkownTerrainOnStartAsObstacle(base::Pose start_world)
     env->attachItem(traversabilityGrid);
     env->setFrameNode(traversabilityGrid, fr);
     env->getRootNode()->addChild(fr);
+
+    if(!cost_conf.makeUnkownTerrainOnStartObstacles)
+    {
+        return;
+    }
     
     bool found = false;
     uint8_t numClasses = traversabilityGrid->getTraversabilityClasses().size();
@@ -383,10 +388,7 @@ VFHServoing::ServoingStatus VFHServoing::getTrajectories(std::vector< base::Traj
         return NO_SOLUTION;
     }
     
-    if(cost_conf.makeUnkownTerrainOnStartObstacles)
-    {
-        markUnkownTerrainOnStartAsObstacle(start);
-    }
+    markUnkownTerrainOnStartAsObstacle(start);
     
     vfh.setNewTraversabilityGrid(traversabilityGrid);
     
