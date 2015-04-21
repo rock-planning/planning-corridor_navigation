@@ -5,6 +5,7 @@
   also be implicitely defined by sensory input (corridor servoing)
   </description>
   <author>Janosch Machowinski/janosch.machowinski@dfki.de, Sylvain Joyeux/sylvain.joyeux@dfki.de</author>
+  <maintainer>Janosch Machowinski/Janosch.Machowinski@dfki.de</maintainer>
   <license>LGPL v2 or later</license>
 
   <depend package="base/types" />
