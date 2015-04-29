@@ -10,6 +10,5 @@
 
   <depend package="base/types" />
   <depend package="planning/vfh_star" />
-  <depend package="planning/corridor_planner" />
   <tags>needs_opt</tags>
 </package>
