@@ -1,6 +1,6 @@
 #include "VFHServoing.hpp"
 #include <vfh_star/VFHStar.h>
-#include <base/angle.h>
+#include <base/Angle.hpp>
 #include <assert.h>
 #include <boost/bind.hpp>
 
